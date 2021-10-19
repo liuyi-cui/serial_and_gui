@@ -1,0 +1,20 @@
+# Pycharm
+.idea/
+
+# Python
+*.pyc
+python/
+
+# Out
+output/
+*.zip
+*.pdf
+*.png
+
+# Input
+input/
+
+# Others
+README.assets
+HIDS
+
