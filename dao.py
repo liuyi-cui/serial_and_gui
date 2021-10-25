@@ -2,7 +2,7 @@
 import os
 import pandas as pd
 
-from utils.file_utils import store_HID
+from utils.file_utils import store_HID, read_license_by_HID
 
 
 class HIDDao:
@@ -39,16 +39,32 @@ class HIDDao:
         self.hid_list = []
 
 
-class HID_License_Map:
+class HID_License_Map:  # TODO 什么时候会调用呢？
+
+    __instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls.__instance:
+            return cls.__instance
+        return super().__new__(cls)
 
     def __init__(self, file_path: str):
-        self.file_path = file_path  # 映射文件地址
-        print(f'file_path: {file_path}')
-        self.hids = []
-        self.hid_license_map = dict()
-        self._load()
+        if not HID_License_Map.__instance:
+            self.file_path = file_path  # 映射文件地址
+            self.hids = []
+            self.hid_license_map = dict()
+            self._load()
+            HID_License_Map.__instance = self
 
     def _load(self):
+        """
+        读取HID-LICENSE映射文件，以{HID1: {组件标志1: license1,组件标志2: license2, ...},
+                                 HID2: {组件标志1: license1,组件标志2: license2, ...},
+                                 ...}方式存储
+        Returns:
+            None
+
+        """
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f'{self.file_path} not exists')
         df = pd.read_excel(self.file_path, sheet_name='license表', dtype=str)
@@ -60,6 +76,22 @@ class HID_License_Map:
             self.hid_license_map.update(
                 {hid: dict(zip(components, licenses))}
             )
+
+    def get_license(self, hid: str) -> dict:
+        """
+        根据HID 获取对应的license
+        Args:
+            hid:
+
+        Returns:
+            {组件标志1: license1, 组件标志2: license2, ...}
+
+        """
+        licenses = self.hid_license_map.get(hid)
+        if licenses:
+            return licenses
+        else:
+            return {}
 
 
 if __name__ == "__main__":
