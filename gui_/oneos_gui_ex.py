@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """GUI操作界面"""
 import tkinter as tk
+from enum import Enum
 from tkinter import ttk
 from tkinter import filedialog
 
@@ -27,6 +28,13 @@ def get_window_size(win, update=True):
     return win.winfo_width(), win.winfo_height(), win.winfo_x(), win.winfo_y()
 
 
+class StatusEnum(Enum):
+
+    HID = 'HID'
+    License = 'License'
+
+
+
 class OneOsGui:
 
     def __init__(self):
@@ -34,8 +42,47 @@ class OneOsGui:
         center_window(self.window_, 600, 450)
         self.window_.title('OneOS License管理工具 -1.0.0')
         self.window_.grab_set()
+        self.init_var()
         self.body()
         self.window_.pack_propagate(True)
+
+    def init_var(self, status=StatusEnum.HID.value):  # 初始化相关变量
+        print('进入init')
+        print(f'status: {status}')
+        self.status = status
+        self.operate_desc = tk.StringVar()  # 记录文件/license文件
+        self.work_status = tk.StringVar()  # 工位
+        self.curr_port = tk.StringVar()  # 串口号
+        self.if_connected = tk.StringVar()  # 连接状态
+        self.record_desc = tk.StringVar()
+        self.record_filepath = tk.StringVar()
+        if status == 'HID':
+            print('HID线')
+            self.operate_desc.set('记录文件')
+            self.work_status.set('读HID')
+            # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
+            # self.if_connected.set('')  # TODO 连接测试/开始后更新
+            self.record_desc.set('记录文件')
+            # self.record_filepath.set('')  # TODO 选中记录文件后更新
+
+        elif status == 'License':
+            print('License线')
+            self.operate_desc.set('license文件')
+            self.work_status.set('写license')
+            # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
+            # self.if_connected.set('')  # TODO 连接测试/开始后更新
+            self.record_desc.set('license文件')
+            # self.record_filepath.set('')  # TODO 选中记录文件后更新
+        else:
+            print('没有线')
+
+    def change_to_hid(self):
+        print('选择hid')
+        self.operate_desc.set('记录文件')
+
+    def change_to_license(self):
+        self.operate_desc.set('license文件')
+        print('选择license')
 
     def body(self):  # 绘制主题
         self.window_.config(menu=self.top(self.window_))  # 让菜单栏显示出来
@@ -59,20 +106,14 @@ class OneOsGui:
 
     def __top_1(self, parent):  # 工位选择菜单栏
 
-        def change_operate(chioce):
-            if chioce == 1:
-                print('选择了读HID')
-            elif chioce == 2:
-                print('选择了写License')
-
         # 创建一个 工位选择 菜单栏(默认不下拉，下拉选项包括 读HID，写License)
         operate_menu = tk.Menu(parent, bd=10, relief='sunken', tearoff=0)
         # 放置operate
         parent.add_cascade(label='工位选择', menu=operate_menu)
         # 放入选项
-        operate_menu.add_command(label='读HID', command=change_operate(chioce=1))
+        operate_menu.add_command(label='读HID', command=self.change_to_hid)
         operate_menu.add_separator()  # 添加一条分割线
-        operate_menu.add_command(label='写License', command=change_operate(chioce=2))
+        operate_menu.add_command(label='写License', command=self.change_to_license)
 
     def __top_2(self, parent):
 
@@ -144,7 +185,8 @@ class OneOsGui:
         return frame
 
     def __main_top_3_1(self, parent):
-        l = tk.Label(parent, text='记录文件', font=_font_b)
+        print(self.operate_desc)
+        l = tk.Label(parent, textvariable=self.operate_desc, font=_font_b)
         return l
 
     def __main_top_3_2(self, parent):
