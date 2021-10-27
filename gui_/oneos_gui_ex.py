@@ -217,11 +217,29 @@ class OneOsGui:
 
     def main_bottom(self, parent):
         frame = tk.Frame(parent, bg='yellow')
+
+        self.__main_bottom_1(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
+        self.__main_bottom_2(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
+        self.__main_bottom_3(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
+        self.__main_bottom_4(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
+
         return frame
 
+    def __main_bottom_1(self, parent):
+        l = tk.Label(parent, text='工位：读HID')
+        return l
 
+    def __main_bottom_2(self, parent):
+        l = tk.Label(parent, text='串口号：COM21')
+        return l
 
+    def __main_bottom_3(self, parent):
+        l = tk.Label(parent, text='串口状态：断开')
+        return l
 
+    def __main_bottom_4(self, parent):
+        l = tk.Label(parent, text='记录文件：filepath')
+        return l
 
     def run(self):
         self.window_.mainloop()
