@@ -269,8 +269,10 @@ class OneOsGui:
     def main_bottom(self, parent):
         frame = tk.Frame(parent, bg='yellow')
 
-        self.__main_bottom_1(frame).pack(side=tk.LEFT, padx=20, fill=tk.X)
-        self.__main_bottom_2(frame).pack(side=tk.LEFT, padx=20, fill=tk.X)
+        self.__main_bottom_1(frame).pack(side=tk.LEFT, padx=5, fill=tk.X)
+        self.__main_bottom_1_value(frame).pack(side=tk.LEFT, fill=tk.X)
+        tk.Label(frame).pack(side=tk.LEFT, padx=15)  # 空白占位控件
+        self.__main_bottom_2(frame).pack(side=tk.LEFT, padx=5, fill=tk.X)
         self.__main_bottom_3(frame).pack(side=tk.LEFT, padx=30, fill=tk.X)
         self.__main_bottom_4(frame).pack(side=tk.LEFT, padx=10, fill=tk.X)
         self.__main_bottom_5(frame).pack(side=tk.LEFT, fill=tk.X)
@@ -278,7 +280,11 @@ class OneOsGui:
         return frame
 
     def __main_bottom_1(self, parent):
-        l = tk.Label(parent, text='工位：读HID')
+        l = tk.Label(parent, text='工位：')
+        return l
+
+    def __main_bottom_1_value(self, parent):  # 工位的值
+        l = tk.Label(parent, textvariable=self.work_status)
         return l
 
     def __main_bottom_2(self, parent):
