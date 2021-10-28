@@ -5,6 +5,8 @@ from enum import Enum
 from tkinter import ttk
 from tkinter import filedialog
 
+from log import logger
+
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
 
@@ -15,8 +17,6 @@ def center_window(win, width=None, height=None):
     screen_height = win.winfo_screenheight()
     if width is None:
         width, height = get_window_size(win)[:2]
-    print(f'screen width:{screen_width}, screen height:{screen_height}, '
-          f'width: {width}, height: {height}')
     size = '%dx%d+%d+%d' % (width, height, (screen_width - width)/2, (screen_height - height)/3)
     win.geometry(size)
 
@@ -34,6 +34,9 @@ class StatusEnum(Enum):
     License = 'License'
 
 
+class StatusEnumException(Exception):
+    pass
+
 
 class OneOsGui:
 
@@ -42,31 +45,32 @@ class OneOsGui:
         center_window(self.window_, 600, 450)
         self.window_.title('OneOS License管理工具 -1.0.0')
         self.window_.grab_set()
-        self.init_var()
+        self.init_var()  # 初始化相关变量
+        self.refresh_var()  # 刷新变量值
         self.body()
         self.window_.pack_propagate(True)
 
-    def init_var(self, status=StatusEnum.HID.value):  # 初始化相关变量
-        print('进入init')
-        print(f'status: {status}')
-        self.status = status
-        self.operate_desc = tk.StringVar()  # 记录文件/license文件
+    def init_var(self):
+        self.operate_desc = tk.StringVar()  # 记录文件/license文件(main_top栏)
         self.work_status = tk.StringVar()  # 工位
         self.curr_port = tk.StringVar()  # 串口号
         self.if_connected = tk.StringVar()  # 连接状态
-        self.record_desc = tk.StringVar()
-        self.record_filepath = tk.StringVar()
+        self.record_desc = tk.StringVar()  # 记录文件(bottom栏)
+        self.record_filepath = tk.StringVar()  # 记录文件路径
+
+        self.port_cb = ttk.Combobox()  # 串口下拉菜单
+
+    def refresh_var(self, status=StatusEnum.HID.value):
+        logger.info(f'refresh status to {status}')
+        self.status = status
         if status == 'HID':
-            print('HID线')
             self.operate_desc.set('记录文件')
             self.work_status.set('读HID')
             # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
             # self.if_connected.set('')  # TODO 连接测试/开始后更新
             self.record_desc.set('记录文件')
             # self.record_filepath.set('')  # TODO 选中记录文件后更新
-
         elif status == 'License':
-            print('License线')
             self.operate_desc.set('license文件')
             self.work_status.set('写license')
             # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
@@ -74,15 +78,13 @@ class OneOsGui:
             self.record_desc.set('license文件')
             # self.record_filepath.set('')  # TODO 选中记录文件后更新
         else:
-            print('没有线')
+            raise StatusEnumException(f'unexpected status {status}')
 
-    def change_to_hid(self):
-        print('选择hid')
-        self.operate_desc.set('记录文件')
+    def change_status_to_hid(self):
+        self.refresh_var(StatusEnum.HID.value)
 
-    def change_to_license(self):
-        self.operate_desc.set('license文件')
-        print('选择license')
+    def change_status_to_license(self):
+        self.refresh_var(StatusEnum.License.value)
 
     def body(self):  # 绘制主题
         self.window_.config(menu=self.top(self.window_))  # 让菜单栏显示出来
@@ -111,17 +113,18 @@ class OneOsGui:
         # 放置operate
         parent.add_cascade(label='工位选择', menu=operate_menu)
         # 放入选项
-        operate_menu.add_command(label='读HID', command=self.change_to_hid)
-        operate_menu.add_separator()  # 添加一条分割线
-        operate_menu.add_command(label='写License', command=self.change_to_license)
+        operate_menu.add_command(label='读HID', command=self.change_status_to_hid)
+        operate_menu.add_command(label='写License', command=self.change_status_to_license)
 
     def __top_2(self, parent):
 
-        def change_operate(chioce):
-            if chioce == 1:
-                print('选择串口配置')
-            elif chioce == 2:
-                print('选择日志配置')
+        def change_operate(chioce):  # TODO 配置弹窗
+            def inner_func():
+                if chioce == 1:
+                    print('选择串口配置')
+                elif chioce == 2:
+                    print('选择日志配置')
+            return inner_func
 
         # 创建一个 工位选择 菜单栏(默认不下拉，下拉选项包括 读HID，写License)
         operate_menu = tk.Menu(parent, bd=10, relief='sunken', tearoff=0)
@@ -129,7 +132,6 @@ class OneOsGui:
         parent.add_cascade(label='配置', menu=operate_menu)
         # 放入选项
         operate_menu.add_command(label='串口配置', command=change_operate(chioce=1))
-        operate_menu.add_separator()  # 添加一条分割线
         operate_menu.add_command(label='日志配置', command=change_operate(chioce=2))
 
     def main_top(self, parent):
@@ -144,7 +146,8 @@ class OneOsGui:
     def __main_top_1(self, parent):
 
         frame = tk.Frame(parent)
-        def start():
+
+        def start():  # TODO 开始逻辑(获取HID/写license)
             print('触发开始')
 
         btn = tk.Button(frame, text='开始', bg='gray', font=_font_b, command=start)
@@ -163,12 +166,14 @@ class OneOsGui:
         return l
 
     def __main_top_2_2(self, parent):
-        port_list = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5']
-        port_cb = ttk.Combobox(parent, value=port_list, width=25)
-        return port_cb
+        port_list = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5']  # TODO 实际的串口列表
+        self.port_cb = ttk.Combobox(parent, value=port_list, width=25)
+        return self.port_cb
 
     def __main_top_2_3(self, parent):
+
         def test_connect():  # 连接测试
+            print('当前选中的串口：', self.port_cb.get())  # TODO 对选中的串口进行连接测试
             print('进行连接测试')
 
         b = tk.Button(parent, text='连接测试', font=_font_s,
@@ -196,7 +201,8 @@ class OneOsGui:
         def path_call_back():
             file_path = filedialog.askopenfilename()
             if file_path != '':
-                record_hid_filepath.set(file_path)
+                record_hid_filepath.set(file_path)  # file_path还要传递给状态栏的记录文件
+                self.record_filepath.set(file_path)
 
         btn = tk.Button(parent, text='打开', font=_font_s,
                       width=10, bg='whitesmoke',
@@ -262,8 +268,9 @@ class OneOsGui:
 
         self.__main_bottom_1(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
         self.__main_bottom_2(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
-        self.__main_bottom_3(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
-        self.__main_bottom_4(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
+        self.__main_bottom_3(parent).pack(side=tk.LEFT, padx=30, fill=tk.X)
+        self.__main_bottom_4(parent).pack(side=tk.LEFT, padx=10, fill=tk.X)
+        self.__main_bottom_5(parent).pack(side=tk.LEFT, fill=tk.X)
 
         return frame
 
@@ -280,7 +287,11 @@ class OneOsGui:
         return l
 
     def __main_bottom_4(self, parent):
-        l = tk.Label(parent, text='记录文件：filepath')
+        l = tk.Label(parent, text='记录文件:')
+        return l
+
+    def __main_bottom_5(self, parent):
+        l = tk.Label(parent, textvariable=self.record_filepath)
         return l
 
     def run(self):
