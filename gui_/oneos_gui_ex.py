@@ -126,9 +126,11 @@ class OneOsGui:
                 if chioce == 1:
                     print('选择串口配置')
                     frame = tk.Toplevel()
-                    self.top_port_config(frame)
+                    self.top_port_config(frame)  # 串口配置窗口
                 elif chioce == 2:
                     print('选择日志配置')
+                    frame = tk.Toplevel()
+                    self.top_log_config(frame)  # 日志配置窗口
             return inner_func
 
         # 创建一个 工位选择 菜单栏(默认不下拉，下拉选项包括 读HID，写License)
@@ -185,7 +187,7 @@ class OneOsGui:
         datadigit_cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_4(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+    def __top_port_config_4(self, parent):
         frame = tk.Frame(parent)
         tk.Label(frame, text='校验位').pack(side=tk.LEFT, padx=10)
         checkdigit_list = ['none', ]
@@ -194,7 +196,7 @@ class OneOsGui:
         checkdigit_cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_5(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+    def __top_port_config_5(self, parent):
         frame = tk.Frame(parent)
         tk.Label(frame, text='停止位').pack(side=tk.LEFT, padx=10)
         stopdigit_list = [1, ]
@@ -203,7 +205,7 @@ class OneOsGui:
         stopdigit_cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_6(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+    def __top_port_config_6(self, parent):
         frame = tk.Frame(parent)
         tk.Label(frame, text='流控   ').pack(side=tk.LEFT, padx=10)
         streamcontrol_list = ['none', ]
@@ -221,6 +223,41 @@ class OneOsGui:
             side=tk.RIGHT, pady=4, padx=10
         )
         return frame
+
+    def top_log_config(self, parent):
+        """
+        日志配置弹窗
+        Args:
+            parent: tk.Toplevel()
+
+        Returns:
+
+        """
+        parent.title('日志配置')
+        center_window(parent, 400, 250)
+        tk.Label(parent, bg='lightgreen').pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
+        tk.Label(parent, bg='lightgreen').pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
+        tk.Label(parent, bg='lightgreen').pack(pady=10, fill=tk.X)
+        self.__top_log_config_1(parent).pack(fill=tk.X, pady=5)
+
+    def __top_log_config_1(self, parent):
+        frame = tk.Frame(parent)
+
+        def refresh_if_record_status():
+            if if_record_log.get() == 0:
+                print('不开启日志记录')
+            elif if_record_log.get() == 1:
+                print('开启日志记录')
+            else:
+                print('未知状态的日志记录')
+
+        if_record_log = tk.IntVar()
+        record_log_cb = tk.Checkbutton(frame, text='记录日志', variable=if_record_log,
+                                       onvalue=1, offvalue=0, command=refresh_if_record_status)
+        record_log_cb.pack(side=tk.LEFT)
+        return frame
+
+
 
 
     def main_top(self, parent):
