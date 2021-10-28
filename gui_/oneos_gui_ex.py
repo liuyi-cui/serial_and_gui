@@ -67,7 +67,7 @@ class OneOsGui:
         if status == 'HID':
             self.operate_desc.set('记录文件')
             self.work_status.set('读HID')
-            # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
+            self.curr_port.set('')  # 切换工位时，初始化为''
             # self.if_connected.set('')  # TODO 连接测试/开始后更新
             self.record_desc.set('记录文件')
             self.record_filepath.set('')  # 切换模式后，初始化该控件信息(bottom栏)
@@ -75,7 +75,7 @@ class OneOsGui:
         elif status == 'License':
             self.operate_desc.set('license文件')
             self.work_status.set('写license')
-            # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
+            self.curr_port.set('')  # 切换工位时，初始化为''
             # self.if_connected.set('')  # TODO 连接测试/开始后更新
             self.record_desc.set('license文件')
             self.record_filepath.set('')  # 切换模式后，初始化该控件信息(bottom栏)
@@ -177,7 +177,7 @@ class OneOsGui:
 
         def test_connect():  # 连接测试
             print('当前选中的串口：', self.port_cb.get())  # TODO 对选中的串口进行连接测试
-            print('进行连接测试')
+            self.curr_port.set(self.port_cb.get())
 
         b = tk.Button(parent, text='连接测试', font=_font_s,
                       width=10, bg='whitesmoke',
@@ -273,6 +273,8 @@ class OneOsGui:
         self.__main_bottom_1_value(frame).pack(side=tk.LEFT, fill=tk.X)
         tk.Label(frame).pack(side=tk.LEFT, padx=15)  # 空白占位控件
         self.__main_bottom_2(frame).pack(side=tk.LEFT, padx=5, fill=tk.X)
+        self.__main_bottom_2_value(frame).pack(side=tk.LEFT)
+        tk.Label(frame).pack(side=tk.LEFT, padx=15)  # 空白占位控件
         self.__main_bottom_3(frame).pack(side=tk.LEFT, padx=30, fill=tk.X)
         self.__main_bottom_4(frame).pack(side=tk.LEFT, padx=10, fill=tk.X)
         self.__main_bottom_5(frame).pack(side=tk.LEFT, fill=tk.X)
@@ -288,7 +290,11 @@ class OneOsGui:
         return l
 
     def __main_bottom_2(self, parent):
-        l = tk.Label(parent, text='串口号：COM21')
+        l = tk.Label(parent, text='串口号:')
+        return l
+
+    def __main_bottom_2_value(self, parent):
+        l = tk.Label(parent, textvariable=self.curr_port)
         return l
 
     def __main_bottom_3(self, parent):
