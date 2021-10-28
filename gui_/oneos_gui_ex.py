@@ -125,6 +125,8 @@ class OneOsGui:
             def inner_func():
                 if chioce == 1:
                     print('选择串口配置')
+                    frame = tk.Toplevel()
+                    self.top_port_config(frame)
                 elif chioce == 2:
                     print('选择日志配置')
             return inner_func
@@ -136,6 +138,90 @@ class OneOsGui:
         # 放入选项
         operate_menu.add_command(label='串口配置', command=change_operate(chioce=1))
         operate_menu.add_command(label='日志配置', command=change_operate(chioce=2))
+
+    def top_port_config(self, parent):  # 串口配置界面
+        """
+
+        Args:
+            parent: tk.Toplevel()
+
+        Returns:
+
+        """
+        parent.title('串口配置')
+        center_window(parent, 400, 250)
+        tk.Label(parent, bg='lightgreen').pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
+        tk.Label(parent, bg='lightgreen').pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
+        self.__top_port_config_1(parent).pack(pady=5)
+        self.__top_port_config_2(parent).pack(pady=5)
+        self.__top_port_config_3(parent).pack(pady=5)
+        self.__top_port_config_4(parent).pack(pady=5)
+        self.__top_port_config_5(parent).pack(pady=5)
+        self.__top_port_config_6(parent).pack(pady=5)
+        self.__top_port_config_7(parent).pack(pady=10)
+
+    def __top_port_config_1(self, parent):
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='串口号').pack(side=tk.LEFT, padx=10)
+        port_list = ['COM1', 'com2', 'com3', 'com4']
+        ttk.Combobox(frame, value=port_list, width=35, state='readonly').pack(side=tk.LEFT, padx=5)
+        return frame
+
+    def __top_port_config_2(self, parent):
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='波特率').pack(side=tk.LEFT, padx=10)
+        baudrate_list = [115200, ]
+        baudrate_cb = ttk.Combobox(frame, value=baudrate_list, width=35, state='readonly')
+        baudrate_cb.current(0)
+        baudrate_cb.pack(side=tk.LEFT, padx=5)
+        return frame
+
+    def __top_port_config_3(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='数据位').pack(side=tk.LEFT, padx=10)
+        datadigit_list = [8, ]
+        datadigit_cb = ttk.Combobox(frame, value=datadigit_list, width=35, state='readonly')
+        datadigit_cb.current(0)
+        datadigit_cb.pack(side=tk.LEFT, padx=5)
+        return frame
+
+    def __top_port_config_4(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='校验位').pack(side=tk.LEFT, padx=10)
+        checkdigit_list = ['none', ]
+        checkdigit_cb = ttk.Combobox(frame, value=checkdigit_list, width=35, state='readonly')
+        checkdigit_cb.current(0)
+        checkdigit_cb.pack(side=tk.LEFT, padx=5)
+        return frame
+
+    def __top_port_config_5(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='停止位').pack(side=tk.LEFT, padx=10)
+        stopdigit_list = [1, ]
+        stopdigit_cb = ttk.Combobox(frame, value=stopdigit_list, width=35, state='readonly')
+        stopdigit_cb.current(0)
+        stopdigit_cb.pack(side=tk.LEFT, padx=5)
+        return frame
+
+    def __top_port_config_6(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='流控   ').pack(side=tk.LEFT, padx=10)
+        streamcontrol_list = ['none', ]
+        streamcontrol_cb = ttk.Combobox(frame, value=streamcontrol_list, width=35, state='readonly')
+        streamcontrol_cb.current(0)
+        streamcontrol_cb.pack(side=tk.LEFT, padx=5)
+        return frame
+
+    def __top_port_config_7(self, parent):  # 确定/取消按钮
+        frame = tk.Frame(parent)
+        tk.Button(frame, text='取消', font=_font_s, bg='silver', height=3, width=6).pack(
+            side=tk.RIGHT, pady=4, padx=10
+        )
+        tk.Button(frame, text='确定', font=_font_s, bg='silver', height=3, width=6).pack(
+            side=tk.RIGHT, pady=4, padx=10
+        )
+        return frame
+
 
     def main_top(self, parent):
         frame = tk.Frame(parent, bg='red', bd=3, highlightcolor='silver', highlightthickness=1)
