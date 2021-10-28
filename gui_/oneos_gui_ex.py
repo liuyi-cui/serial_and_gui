@@ -42,7 +42,7 @@ class OneOsGui:
 
     def __init__(self):
         self.window_ = tk.Tk()
-        center_window(self.window_, 600, 450)
+        center_window(self.window_, 800, 450)
         self.window_.title('OneOS License管理工具 -1.0.0')
         self.window_.grab_set()
         self.init_var()  # 初始化相关变量
@@ -59,6 +59,7 @@ class OneOsGui:
         self.record_filepath = tk.StringVar()  # 记录文件路径
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
+        self.filepath_entry = tk.Entry()  # 文件选择控件
 
     def refresh_var(self, status=StatusEnum.HID.value):
         logger.info(f'refresh status to {status}')
@@ -69,14 +70,16 @@ class OneOsGui:
             # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
             # self.if_connected.set('')  # TODO 连接测试/开始后更新
             self.record_desc.set('记录文件')
-            # self.record_filepath.set('')  # TODO 选中记录文件后更新
+            self.record_filepath.set('')  # 切换模式后，初始化该控件信息(bottom栏)
+            self.filepath_entry.delete(0, tk.END)  # 切换模式后，初始化该控件信息(top栏)
         elif status == 'License':
             self.operate_desc.set('license文件')
             self.work_status.set('写license')
             # self.curr_port.set('')  # TODO 选中串口号后更新；开始后更新
             # self.if_connected.set('')  # TODO 连接测试/开始后更新
             self.record_desc.set('license文件')
-            # self.record_filepath.set('')  # TODO 选中记录文件后更新
+            self.record_filepath.set('')  # 切换模式后，初始化该控件信息(bottom栏)
+            self.filepath_entry.delete(0, tk.END)  # 切换模式后，初始化该控件信息(top栏)
         else:
             raise StatusEnumException(f'unexpected status {status}')
 
@@ -190,7 +193,7 @@ class OneOsGui:
         return frame
 
     def __main_top_3_1(self, parent):
-        print(self.operate_desc)
+        print(self.operate_desc.get())
         l = tk.Label(parent, textvariable=self.operate_desc, font=_font_b)
         return l
 
@@ -207,9 +210,9 @@ class OneOsGui:
         btn = tk.Button(parent, text='打开', font=_font_s,
                       width=10, bg='whitesmoke',
                       command=path_call_back)
-        filepath_entry = tk.Entry(parent, textvariable=record_hid_filepath)
+        self.filepath_entry = tk.Entry(parent, textvariable=record_hid_filepath)
 
-        return filepath_entry, btn
+        return self.filepath_entry, btn
 
     def main_text(self, parent):
         frame = tk.Frame(parent, bg='orange')
@@ -266,11 +269,11 @@ class OneOsGui:
     def main_bottom(self, parent):
         frame = tk.Frame(parent, bg='yellow')
 
-        self.__main_bottom_1(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
-        self.__main_bottom_2(parent).pack(side=tk.LEFT, padx=20, fill=tk.X)
-        self.__main_bottom_3(parent).pack(side=tk.LEFT, padx=30, fill=tk.X)
-        self.__main_bottom_4(parent).pack(side=tk.LEFT, padx=10, fill=tk.X)
-        self.__main_bottom_5(parent).pack(side=tk.LEFT, fill=tk.X)
+        self.__main_bottom_1(frame).pack(side=tk.LEFT, padx=20, fill=tk.X)
+        self.__main_bottom_2(frame).pack(side=tk.LEFT, padx=20, fill=tk.X)
+        self.__main_bottom_3(frame).pack(side=tk.LEFT, padx=30, fill=tk.X)
+        self.__main_bottom_4(frame).pack(side=tk.LEFT, padx=10, fill=tk.X)
+        self.__main_bottom_5(frame).pack(side=tk.LEFT, fill=tk.X)
 
         return frame
 
