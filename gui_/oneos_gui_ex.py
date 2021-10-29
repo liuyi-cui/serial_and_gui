@@ -153,8 +153,8 @@ class OneOsGui:
         """
         parent.title('串口配置')
         center_window(parent, 400, 250)
-        tk.Label(parent, bg='lightgreen').pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
-        tk.Label(parent, bg='lightgreen').pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
+        tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
+        tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
         self.__top_port_config_1(parent).pack(pady=5)
         self.__top_port_config_2(parent).pack(pady=5)
         self.__top_port_config_3(parent).pack(pady=5)
@@ -236,9 +236,9 @@ class OneOsGui:
         """
         parent.title('日志配置')
         center_window(parent, 400, 250)
-        tk.Label(parent, bg='lightgreen').pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
-        tk.Label(parent, bg='lightgreen').pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
-        tk.Label(parent, bg='lightgreen').pack(pady=10, fill=tk.X)
+        tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
+        tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
+        tk.Label(parent).pack(pady=10, fill=tk.X)
         self.__top_log_config_1(parent).pack(fill=tk.X, pady=5)  # 是否保存日志单选框
         self.__top_log_config_2(parent).pack(fill=tk.X, pady=5)  # 存盘日志路径
         self.__top_log_config_3(parent).pack(fill=tk.X, pady=5)
@@ -316,7 +316,7 @@ class OneOsGui:
         return frame
 
     def main_top(self, parent):
-        frame = tk.Frame(parent, bg='red', bd=3, highlightcolor='silver', highlightthickness=1)
+        frame = tk.Frame(parent, bd=3, highlightcolor='silver', highlightthickness=1)
 
         self.__main_top_1(frame).pack(side=tk.RIGHT, fill=tk.Y, padx=10)
         self.__main_top_2(frame).pack(side=tk.TOP, expand=True, fill=tk.BOTH, padx=10)
@@ -397,7 +397,7 @@ class OneOsGui:
         return self.filepath_entry, btn
 
     def main_text(self, parent):
-        frame = tk.Frame(parent, bg='orange')
+        frame = tk.Frame(parent)
 
         self.__main_text_left(frame).pack(side=tk.LEFT, padx=10, expand=True, fill=tk.BOTH)
         self.__main_text_right(frame).pack(side=tk.RIGHT, padx=10, expand=True, fill=tk.BOTH)
@@ -427,7 +427,7 @@ class OneOsGui:
         return b
 
     def __main_text_right(self, parent):  # 操作统计Text控件，清除统计按钮
-        frame_right = tk.Frame(parent, bg='lightcyan')
+        frame_right = tk.Frame(parent)
         self.__main_text_right_1(frame_right).pack(expand=True, fill=tk.BOTH)  # 日志打印text控件
         self.__main_text_right_2(frame_right).pack(side=tk.RIGHT)
 
@@ -449,7 +449,7 @@ class OneOsGui:
         return b
 
     def main_bottom(self, parent):
-        frame = tk.Frame(parent, bg='yellow')
+        frame = tk.Frame(parent)
 
         self.__main_bottom_1(frame).pack(side=tk.LEFT, padx=5, fill=tk.X)
         self.__main_bottom_1_value(frame).pack(side=tk.LEFT, fill=tk.X)
