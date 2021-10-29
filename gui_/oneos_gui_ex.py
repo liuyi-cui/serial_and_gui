@@ -7,8 +7,17 @@ from tkinter import filedialog
 
 from log import logger
 
-_font_s = ('微软雅黑', 8)  # 字体
-_font_b = ('微软雅黑', 12)  # 字体
+# 字体
+_FONT_S = ('微软雅黑', 8)  # 小号字体
+_FONT_L = ('微软雅黑', 12)  # 大号字体字体
+# 标题
+TITLE_MAIN = 'OneOS License管理工具 -1.0.0'
+TITLE_PORT_CONFIG = '串口配置'
+TITLE_LOG_CONFIG = '日志配置'
+# 窗体大小
+SIZE_MAIN = (800, 450)
+SIZE_POPUPS = (400, 250)
+#
 
 
 def center_window(win, width=None, height=None):
@@ -29,6 +38,7 @@ def get_window_size(win, update=True):
 
 
 class StatusEnum(Enum):
+    """两种工位状态：读HID/写License"""
 
     HID = 'HID'
     License = 'License'
@@ -42,9 +52,9 @@ class OneOsGui:
 
     def __init__(self):
         self.window_ = tk.Tk()
-        center_window(self.window_, 800, 450)
-        self.window_.title('OneOS License管理工具 -1.0.0')
-        self.window_.grab_set()
+        center_window(self.window_, *SIZE_MAIN)
+        self.window_.title(TITLE_MAIN)
+        self.window_.grab_set()  # 窗口显示在最前方
         self.init_var()  # 初始化相关变量
         self.refresh_var()  # 刷新变量值
         self.body()
@@ -59,9 +69,10 @@ class OneOsGui:
         self.record_filepath = tk.StringVar()  # 记录文件路径
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
+        self.port_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的串口下拉菜单
         self.filepath_entry = tk.Entry()  # 文件选择控件
 
-    def refresh_var(self, status=StatusEnum.HID.value):
+    def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
         logger.info(f'refresh status to {status}')
         self.status = status
         if status == 'HID':
@@ -90,7 +101,7 @@ class OneOsGui:
         self.refresh_var(StatusEnum.License.value)
 
     def body(self):  # 绘制主题
-        self.window_.config(menu=self.top(self.window_))  # 让菜单栏显示出来
+        self.window_.config(menu=self.top(self.window_))  # 菜单栏
 
         # main_top
         self.main_top(self.window_).pack(expand=True, fill=tk.BOTH)
@@ -112,7 +123,7 @@ class OneOsGui:
     def __top_1(self, parent):  # 工位选择菜单栏
 
         # 创建一个 工位选择 菜单栏(默认不下拉，下拉选项包括 读HID，写License)
-        operate_menu = tk.Menu(parent, bd=10, relief='sunken', tearoff=0)
+        operate_menu = tk.Menu(parent, tearoff=0)
         # 放置operate
         parent.add_cascade(label='工位选择', menu=operate_menu)
         # 放入选项
@@ -121,11 +132,12 @@ class OneOsGui:
 
     def __top_2(self, parent):
 
-        def change_operate(chioce):  # TODO 配置弹窗
+        def change_operate(chioce):
             def inner_func():
                 if chioce == 1:
                     print('选择串口配置')
                     frame = tk.Toplevel()
+                    frame.transient(self.window_)  # 随主窗口最小化而最小化，关闭而关闭，在主窗口前面
                     self.top_port_config(frame)  # 串口配置窗口
                 elif chioce == 2:
                     print('选择日志配置')
@@ -135,7 +147,7 @@ class OneOsGui:
             return inner_func
 
         # 创建一个 工位选择 菜单栏(默认不下拉，下拉选项包括 读HID，写License)
-        operate_menu = tk.Menu(parent, bd=10, relief='sunken', tearoff=0)
+        operate_menu = tk.Menu(parent, tearoff=0)
         # 放置operate
         parent.add_cascade(label='配置', menu=operate_menu)
         # 放入选项
@@ -151,8 +163,8 @@ class OneOsGui:
         Returns:
 
         """
-        parent.title('串口配置')
-        center_window(parent, 400, 250)
+        parent.title(TITLE_PORT_CONFIG)
+        center_window(parent, *SIZE_POPUPS)
         tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
         tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
         self.__top_port_config_1(parent).pack(pady=5)
@@ -163,14 +175,15 @@ class OneOsGui:
         self.__top_port_config_6(parent).pack(pady=5)
         self.__top_port_config_7(parent).pack(pady=10)
 
-    def __top_port_config_1(self, parent):
+    def __top_port_config_1(self, parent):  # 串口号
         frame = tk.Frame(parent)
         tk.Label(frame, text='串口号').pack(side=tk.LEFT, padx=10)
-        port_list = ['COM1', 'com2', 'com3', 'com4']
-        ttk.Combobox(frame, value=port_list, width=35, state='readonly').pack(side=tk.LEFT, padx=5)
+        port_list = ['COM1', 'com2', 'com3', 'com4']  # TODO 调用串口获取当前串口号
+        self.port_cb_port_config = ttk.Combobox(frame, value=port_list, width=35, state='readonly').pack(
+            side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_2(self, parent):
+    def __top_port_config_2(self, parent):  # 波特率
         frame = tk.Frame(parent)
         tk.Label(frame, text='波特率').pack(side=tk.LEFT, padx=10)
         baudrate_list = [115200, ]
@@ -179,7 +192,7 @@ class OneOsGui:
         baudrate_cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_3(self, parent):  # 数据位默认值8/校验位默认none/停止位1/流控none
+    def __top_port_config_3(self, parent):  # 数据位(默认值8)
         frame = tk.Frame(parent)
         tk.Label(frame, text='数据位').pack(side=tk.LEFT, padx=10)
         datadigit_list = [8, ]
@@ -188,7 +201,7 @@ class OneOsGui:
         datadigit_cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_4(self, parent):
+    def __top_port_config_4(self, parent):  # 校验位(默认值None)
         frame = tk.Frame(parent)
         tk.Label(frame, text='校验位').pack(side=tk.LEFT, padx=10)
         checkdigit_list = ['none', ]
@@ -197,7 +210,7 @@ class OneOsGui:
         checkdigit_cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_5(self, parent):
+    def __top_port_config_5(self, parent):  # 停止位(默认值1)
         frame = tk.Frame(parent)
         tk.Label(frame, text='停止位').pack(side=tk.LEFT, padx=10)
         stopdigit_list = [1, ]
@@ -206,7 +219,7 @@ class OneOsGui:
         stopdigit_cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_6(self, parent):
+    def __top_port_config_6(self, parent):  # 流控(默认值None)
         frame = tk.Frame(parent)
         tk.Label(frame, text='流控   ').pack(side=tk.LEFT, padx=10)
         streamcontrol_list = ['none', ]
@@ -217,10 +230,10 @@ class OneOsGui:
 
     def __top_port_config_7(self, parent):  # 确定/取消按钮
         frame = tk.Frame(parent)
-        tk.Button(frame, text='取消', font=_font_s, bg='silver', height=3, width=6).pack(
+        tk.Button(frame, text='取消', font=_FONT_S, bg='silver', height=3, width=6).pack(
             side=tk.RIGHT, pady=4, padx=10
         )
-        tk.Button(frame, text='确定', font=_font_s, bg='silver', height=3, width=6).pack(
+        tk.Button(frame, text='确定', font=_FONT_S, bg='silver', height=3, width=6).pack(
             side=tk.RIGHT, pady=4, padx=10
         )
         return frame
@@ -234,8 +247,8 @@ class OneOsGui:
         Returns:
 
         """
-        parent.title('日志配置')
-        center_window(parent, 400, 250)
+        parent.title(TITLE_LOG_CONFIG)
+        center_window(parent, *SIZE_POPUPS)
         tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
         tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
         tk.Label(parent).pack(pady=10, fill=tk.X)
@@ -270,7 +283,7 @@ class OneOsGui:
         return frame
 
     def __top_log_config_2_1(self, parent):
-        l = tk.Label(parent, text='存储日志', font=_font_s)
+        l = tk.Label(parent, text='存储日志', font=_FONT_S)
         return l
 
     def __top_log_config_2_2(self, parent):
@@ -282,7 +295,7 @@ class OneOsGui:
             if file_path != '':
                 log_filepath.set(file_path)  # TODO 此处的日志路径需要传递给后台使用
 
-        btn = tk.Button(parent, text='打开', font=_font_s,
+        btn = tk.Button(parent, text='打开', font=_FONT_S,
                         width=10, bg='whitesmoke', command=path_call_back)
         log_path_entry = tk.Entry(parent, textvariable=log_filepath)
 
@@ -309,9 +322,9 @@ class OneOsGui:
 
     def __top_log_config_4(self, parent):
         frame = tk.Frame(parent)
-        tk.Button(frame, text='取消', font=_font_s, bg='silver',
+        tk.Button(frame, text='取消', font=_FONT_S, bg='silver',
                   height=2, width=8).pack(side=tk.RIGHT, pady=4, padx=10)
-        tk.Button(frame, text='确定', font=_font_s, bg='silver',
+        tk.Button(frame, text='确定', font=_FONT_S, bg='silver',
                   height=2, width=8).pack(side=tk.RIGHT, pady=4, padx=10)
         return frame
 
@@ -331,7 +344,7 @@ class OneOsGui:
         def start():  # TODO 开始逻辑(获取HID/写license)
             print('触发开始')
 
-        btn = tk.Button(frame, text='开始', bg='gray', font=_font_b, command=start)
+        btn = tk.Button(frame, text='开始', bg='gray', font=_FONT_L, command=start)
         btn.pack(side=tk.LEFT, padx=20)
         return frame
 
@@ -343,7 +356,7 @@ class OneOsGui:
         return frame
 
     def __main_top_2_1(self, parent):
-        l = tk.Label(parent, text='串口号', font=_font_b, padx=10)
+        l = tk.Label(parent, text='串口号', font=_FONT_L, padx=10)
         return l
 
     def __main_top_2_2(self, parent):
@@ -361,7 +374,7 @@ class OneOsGui:
             if if_connected:
                 self.if_connected.set('连接')
 
-        b = tk.Button(parent, text='连接测试', font=_font_s,
+        b = tk.Button(parent, text='连接测试', font=_FONT_S,
                       width=10, bg='whitesmoke',
                       command=test_connect)
         return b
@@ -376,7 +389,7 @@ class OneOsGui:
 
     def __main_top_3_1(self, parent):
         print(self.operate_desc.get())
-        l = tk.Label(parent, textvariable=self.operate_desc, font=_font_b)
+        l = tk.Label(parent, textvariable=self.operate_desc, font=_FONT_L)
         return l
 
     def __main_top_3_2(self, parent):
@@ -389,9 +402,9 @@ class OneOsGui:
                 record_hid_filepath.set(file_path)  # file_path还要传递给状态栏的记录文件
                 self.record_filepath.set(file_path)
 
-        btn = tk.Button(parent, text='打开', font=_font_s,
-                      width=10, bg='whitesmoke',
-                      command=path_call_back)
+        btn = tk.Button(parent, text='打开', font=_FONT_S,
+                        width=10, bg='whitesmoke',
+                        command=path_call_back)
         self.filepath_entry = tk.Entry(parent, textvariable=record_hid_filepath)
 
         return self.filepath_entry, btn
@@ -422,7 +435,7 @@ class OneOsGui:
         def clean_log():
             self.log_shower.delete(1.0, tk.END)  # 清除text中文本
 
-        b = tk.Button(parent, text='清除日志', font=_font_s, height=2, width=5,
+        b = tk.Button(parent, text='清除日志', font=_FONT_S, height=2, width=5,
                       padx=1, pady=1, command=clean_log)
         return b
 
@@ -444,7 +457,7 @@ class OneOsGui:
         def clean_log():
             self.operate_shower.delete(1.0, tk.END)  # 清除text中文本
 
-        b = tk.Button(parent, text='清除统计', font=_font_s, height=2, width=5,
+        b = tk.Button(parent, text='清除统计', font=_FONT_S, height=2, width=5,
                       padx=1, pady=1, command=clean_log)
         return b
 
