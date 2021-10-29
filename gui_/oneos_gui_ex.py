@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """GUI操作界面"""
 import tkinter as tk
+from collections import namedtuple
 from enum import Enum
 from tkinter import ttk
 from tkinter import filedialog
@@ -17,7 +18,8 @@ TITLE_LOG_CONFIG = '日志配置'
 # 窗体大小
 SIZE_MAIN = (800, 450)
 SIZE_POPUPS = (400, 250)
-#
+# 串口配置项
+Port_Config_Item = namedtuple('Port_Config_Item', ['name', 'value'])
 
 
 def center_window(win, width=None, height=None):
@@ -70,6 +72,11 @@ class OneOsGui:
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.port_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的串口下拉菜单
+        self.baudrate_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的波特率下拉菜单
+        self.data_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的数据位下拉菜单
+        self.check_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的校验位下拉菜单
+        self.stop_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的停止位下拉菜单
+        self.stream_controller = ttk.Combobox()  # 菜单栏串口配置弹窗的流控下拉菜单
         self.filepath_entry = tk.Entry()  # 文件选择控件
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
@@ -167,73 +174,47 @@ class OneOsGui:
         center_window(parent, *SIZE_POPUPS)
         tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
         tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
-        self.__top_port_config_1(parent).pack(pady=5)
-        self.__top_port_config_2(parent).pack(pady=5)
-        self.__top_port_config_3(parent).pack(pady=5)
-        self.__top_port_config_4(parent).pack(pady=5)
-        self.__top_port_config_5(parent).pack(pady=5)
-        self.__top_port_config_6(parent).pack(pady=5)
-        self.__top_port_config_7(parent).pack(pady=10)
 
-    def __top_port_config_1(self, parent):  # 串口号
+        port_config_items = {
+            '串口号': Port_Config_Item(name='port_cb_port_config', value=['COM1', 'COM2', 'COM19', 'COM21']),  # TODO 调用串口获取当前串口号
+            '波特率': Port_Config_Item(name='baudrate_cb_port_config', value=[115200, ]),
+            '数据位': Port_Config_Item(name='data_digit_port_config', value=[8]),
+            '校验位': Port_Config_Item(name='check_digit_port_config', value=['None',]),
+            '停止位': Port_Config_Item(name='stop_digit_port_config', value=[1, ]),
+            '流控   ': Port_Config_Item(name='stream_controller', value=['None', ]),
+        }
+        for k, v in port_config_items.items():
+            self.__build_top_config_combobox(parent, k, v).pack(pady=5)
+        self.__top_port_config_confirm(parent).pack(pady=10)
+
+    def __build_top_config_combobox(self, parent, k_name, k_value):
         frame = tk.Frame(parent)
-        tk.Label(frame, text='串口号').pack(side=tk.LEFT, padx=10)
-        port_list = ['COM1', 'com2', 'com3', 'com4']  # TODO 调用串口获取当前串口号
-        self.port_cb_port_config = ttk.Combobox(frame, value=port_list, width=35, state='readonly').pack(
-            side=tk.LEFT, padx=5)
+        tk.Label(frame, text=k_name).pack(side=tk.LEFT, padx=10)
+        setattr(self, k_value.name, ttk.Combobox(frame, value=k_value.value, width=35, state='readonly'))
+        cb = getattr(self, k_value.name)
+        cb.current(0)
+        cb.pack(side=tk.LEFT, padx=5)
         return frame
 
-    def __top_port_config_2(self, parent):  # 波特率
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='波特率').pack(side=tk.LEFT, padx=10)
-        baudrate_list = [115200, ]
-        baudrate_cb = ttk.Combobox(frame, value=baudrate_list, width=35, state='readonly')
-        baudrate_cb.current(0)
-        baudrate_cb.pack(side=tk.LEFT, padx=5)
-        return frame
+    def __top_port_config_confirm(self, parent):  # 确定/取消按钮
 
-    def __top_port_config_3(self, parent):  # 数据位(默认值8)
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='数据位').pack(side=tk.LEFT, padx=10)
-        datadigit_list = [8, ]
-        datadigit_cb = ttk.Combobox(frame, value=datadigit_list, width=35, state='readonly')
-        datadigit_cb.current(0)
-        datadigit_cb.pack(side=tk.LEFT, padx=5)
-        return frame
+        def confirm():
+            print(f'串口号:', self.port_cb_port_config.get())
+            print(f'波特率:', self.baudrate_cb_port_config.get())
+            print(f'数据位:', self.data_digit_port_config.get())
+            print(f'校验位:', self.check_digit_port_config.get())
+            print(f'停止位:', self.stop_digit_port_config.get())
+            print(f'流控:', self.stream_controller.get())
+            parent.destroy()
 
-    def __top_port_config_4(self, parent):  # 校验位(默认值None)
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='校验位').pack(side=tk.LEFT, padx=10)
-        checkdigit_list = ['none', ]
-        checkdigit_cb = ttk.Combobox(frame, value=checkdigit_list, width=35, state='readonly')
-        checkdigit_cb.current(0)
-        checkdigit_cb.pack(side=tk.LEFT, padx=5)
-        return frame
+        def cancel():
+            parent.destroy()
 
-    def __top_port_config_5(self, parent):  # 停止位(默认值1)
         frame = tk.Frame(parent)
-        tk.Label(frame, text='停止位').pack(side=tk.LEFT, padx=10)
-        stopdigit_list = [1, ]
-        stopdigit_cb = ttk.Combobox(frame, value=stopdigit_list, width=35, state='readonly')
-        stopdigit_cb.current(0)
-        stopdigit_cb.pack(side=tk.LEFT, padx=5)
-        return frame
-
-    def __top_port_config_6(self, parent):  # 流控(默认值None)
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='流控   ').pack(side=tk.LEFT, padx=10)
-        streamcontrol_list = ['none', ]
-        streamcontrol_cb = ttk.Combobox(frame, value=streamcontrol_list, width=35, state='readonly')
-        streamcontrol_cb.current(0)
-        streamcontrol_cb.pack(side=tk.LEFT, padx=5)
-        return frame
-
-    def __top_port_config_7(self, parent):  # 确定/取消按钮
-        frame = tk.Frame(parent)
-        tk.Button(frame, text='取消', font=_FONT_S, bg='silver', height=3, width=6).pack(
+        tk.Button(frame, text='取消', font=_FONT_S, bg='silver', height=3, width=6, command=cancel).pack(
             side=tk.RIGHT, pady=4, padx=10
         )
-        tk.Button(frame, text='确定', font=_FONT_S, bg='silver', height=3, width=6).pack(
+        tk.Button(frame, text='确定', font=_FONT_S, bg='silver', height=3, width=6, command=confirm).pack(
             side=tk.RIGHT, pady=4, padx=10
         )
         return frame
