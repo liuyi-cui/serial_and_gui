@@ -242,6 +242,7 @@ class OneOsGui:
         self.__top_log_config_1(parent).pack(fill=tk.X, pady=5)  # 是否保存日志单选框
         self.__top_log_config_2(parent).pack(fill=tk.X, pady=5)  # 存盘日志路径
         self.__top_log_config_3(parent).pack(fill=tk.X, pady=5)
+        self.__top_log_config_4(parent).pack(fill=tk.X, pady=10)
 
     def __top_log_config_1(self, parent):
         frame = tk.Frame(parent)
@@ -306,7 +307,13 @@ class OneOsGui:
         l = tk.Label(parent, text='MB')
         return l
 
-
+    def __top_log_config_4(self, parent):
+        frame = tk.Frame(parent)
+        tk.Button(frame, text='取消', font=_font_s, bg='silver',
+                  height=2, width=8).pack(side=tk.RIGHT, pady=4, padx=10)
+        tk.Button(frame, text='确定', font=_font_s, bg='silver',
+                  height=2, width=8).pack(side=tk.RIGHT, pady=4, padx=10)
+        return frame
 
     def main_top(self, parent):
         frame = tk.Frame(parent, bg='red', bd=3, highlightcolor='silver', highlightthickness=1)
