@@ -129,7 +129,8 @@ class OneOsGui:
                     self.top_port_config(frame)  # 串口配置窗口
                 elif chioce == 2:
                     print('选择日志配置')
-                    frame = tk.Toplevel()
+                    frame = tk.Toplevel(self.window_)
+                    frame.transient(self.window_)  # 随主窗口最小化而最小化，关闭而关闭，在主窗口前面
                     self.top_log_config(frame)  # 日志配置窗口
             return inner_func
 
@@ -238,7 +239,8 @@ class OneOsGui:
         tk.Label(parent, bg='lightgreen').pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
         tk.Label(parent, bg='lightgreen').pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
         tk.Label(parent, bg='lightgreen').pack(pady=10, fill=tk.X)
-        self.__top_log_config_1(parent).pack(fill=tk.X, pady=5)
+        self.__top_log_config_1(parent).pack(fill=tk.X, pady=5)  # 是否保存日志单选框
+        self.__top_log_config_2(parent).pack(fill=tk.X, pady=5)  # 存盘日志路径
 
     def __top_log_config_1(self, parent):
         frame = tk.Frame(parent)
@@ -256,6 +258,34 @@ class OneOsGui:
                                        onvalue=1, offvalue=0, command=refresh_if_record_status)
         record_log_cb.pack(side=tk.LEFT)
         return frame
+
+    def __top_log_config_2(self, parent):
+        frame = tk.Frame(parent)
+        self.__top_log_config_2_1(frame).pack(side=tk.LEFT)  # 存储日志标签
+        log_path_entry, choice_btn = self.__top_log_config_2_2(frame)
+        log_path_entry.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        choice_btn.pack(side=tk.RIGHT, padx=5)
+        return frame
+
+    def __top_log_config_2_1(self, parent):
+        l = tk.Label(parent, text='存储日志', font=_font_s)
+        return l
+
+    def __top_log_config_2_2(self, parent):
+
+        log_filepath = tk.StringVar()  # 接收日志路径
+
+        def path_call_back():
+            file_path = filedialog.askopenfilename()
+            if file_path != '':
+                log_filepath.set(file_path)  # TODO 此处的日志路径需要传递给后台使用
+
+        btn = tk.Button(parent, text='打开', font=_font_s,
+                        width=10, bg='whitesmoke', command=path_call_back)
+        log_path_entry = tk.Entry(parent, textvariable=log_filepath)
+
+        return log_path_entry, btn
+
 
 
 
