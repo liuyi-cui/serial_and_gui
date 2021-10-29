@@ -241,6 +241,7 @@ class OneOsGui:
         tk.Label(parent, bg='lightgreen').pack(pady=10, fill=tk.X)
         self.__top_log_config_1(parent).pack(fill=tk.X, pady=5)  # 是否保存日志单选框
         self.__top_log_config_2(parent).pack(fill=tk.X, pady=5)  # 存盘日志路径
+        self.__top_log_config_3(parent).pack(fill=tk.X, pady=5)
 
     def __top_log_config_1(self, parent):
         frame = tk.Frame(parent)
@@ -286,7 +287,24 @@ class OneOsGui:
 
         return log_path_entry, btn
 
+    def __top_log_config_3(self, parent):
+        frame = tk.Frame(parent)
+        self.__top_log_config_3_1(frame).pack(side=tk.LEFT)
+        self.__top_log_config_3_2(frame).pack(side=tk.LEFT, expand=True, fill=tk.X)
+        self.__top_log_config_3_3(frame).pack(side=tk.LEFT, padx=15)
+        return frame
 
+    def __top_log_config_3_1(self, parent):
+        l = tk.Label(parent, text='日志大小上限')
+        return l
+
+    def __top_log_config_3_2(self, parent):
+        e = tk.Entry(parent, show=None)  # 明文形式显示 TODO 确定按钮时需要接收输入框中值，并且要做纯数字的判断
+        return e
+
+    def __top_log_config_3_3(self, parent):
+        l = tk.Label(parent, text='MB')
+        return l
 
 
 
