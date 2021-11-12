@@ -63,20 +63,23 @@ class OneOsGui:
         self.window_.pack_propagate(True)
 
     def init_var(self):
+        self.if_record_log = False  # 日志配置弹窗复选框，是否存储日志
+        self.log_filepath = ''  # 日志存储路径
         self.operate_desc = tk.StringVar()  # 记录文件/license文件(main_top栏)
-        self.work_status = tk.StringVar()  # 工位
+        self.work_type = tk.StringVar()  # 工位
         self.curr_port = tk.StringVar()  # 串口号
         self.if_connected = tk.StringVar()  # 连接状态
         self.record_desc = tk.StringVar()  # 记录文件(bottom栏)
         self.record_filepath = tk.StringVar()  # 记录文件路径
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
+        self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
         self.port_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的串口下拉菜单
         self.baudrate_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的波特率下拉菜单
         self.data_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的数据位下拉菜单
         self.check_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的校验位下拉菜单
         self.stop_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的停止位下拉菜单
-        self.stream_controller = ttk.Combobox()  # 菜单栏串口配置弹窗的流控下拉菜单
+        self.stream_controller_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的流控下拉菜单
         self.filepath_entry = tk.Entry()  # 文件选择控件
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
@@ -84,7 +87,7 @@ class OneOsGui:
         self.status = status
         if status == 'HID':
             self.operate_desc.set('记录文件')
-            self.work_status.set('读HID')
+            self.work_type.set('读HID')
             self.curr_port.set('')  # 切换工位时，初始化为''
             self.if_connected.set('断开')  # 切换工位时，初始化为''
             self.record_desc.set('记录文件')
@@ -92,7 +95,7 @@ class OneOsGui:
             self.filepath_entry.delete(0, tk.END)  # 切换模式后，初始化该控件信息(top栏)
         elif status == 'License':
             self.operate_desc.set('license文件')
-            self.work_status.set('写license')
+            self.work_type.set('写license')
             self.curr_port.set('')  # 切换工位时，初始化为''
             self.if_connected.set('断开')  # 切换工位时，初始化为''
             self.record_desc.set('license文件')
@@ -204,7 +207,7 @@ class OneOsGui:
             print(f'数据位:', self.data_digit_port_config.get())
             print(f'校验位:', self.check_digit_port_config.get())
             print(f'停止位:', self.stop_digit_port_config.get())
-            print(f'流控:', self.stream_controller.get())
+            print(f'流控:', self.stream_controller_port_config.get())
             parent.destroy()
 
         def cancel():
@@ -246,6 +249,7 @@ class OneOsGui:
                 print('不开启日志记录')
             elif if_record_log.get() == 1:
                 print('开启日志记录')
+                self.if_record_log = True
             else:
                 print('未知状态的日志记录')
 
@@ -278,9 +282,9 @@ class OneOsGui:
 
         btn = tk.Button(parent, text='打开', font=_FONT_S,
                         width=10, bg='whitesmoke', command=path_call_back)
-        log_path_entry = tk.Entry(parent, textvariable=log_filepath)
+        self.log_path_entry = tk.Entry(parent, textvariable=log_filepath)
 
-        return log_path_entry, btn
+        return self.log_path_entry, btn
 
     def __top_log_config_3(self, parent):
         frame = tk.Frame(parent)
@@ -303,6 +307,18 @@ class OneOsGui:
 
     def __top_log_config_4(self, parent):
         frame = tk.Frame(parent)
+
+        def cancel():
+            parent.destroy()
+
+        def confirm():  # 确定时，需要获取是否需要存储日志，日志存储路径和日志的大小
+            print('是否需要存储日志', self.if_record_log)  # 是否需要存储日志
+            print('日志存储路径', self.record_filepath)  # 日志存储路径
+            print()
+
+            pass
+
+
         tk.Button(frame, text='取消', font=_FONT_S, bg='silver',
                   height=2, width=8).pack(side=tk.RIGHT, pady=4, padx=10)
         tk.Button(frame, text='确定', font=_FONT_S, bg='silver',
@@ -466,7 +482,7 @@ class OneOsGui:
         return l
 
     def __main_bottom_1_value(self, parent):  # 工位的值
-        l = tk.Label(parent, textvariable=self.work_status)
+        l = tk.Label(parent, textvariable=self.work_type)
         return l
 
     def __main_bottom_2(self, parent):
