@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """GUI操作界面"""
 import tkinter as tk
+import tkinter.messagebox
 from collections import namedtuple
 from enum import Enum
 from tkinter import ttk
 from tkinter import filedialog
+from serial_.pyboard import PyBoard, PyBoardException
 
 from log import logger
 
@@ -61,6 +63,7 @@ class OneOsGui:
         self.refresh_var()  # 刷新变量值
         self.body()
         self.window_.pack_propagate(True)
+        self.conn = None  # 串口连接对象
 
     def init_var(self):
         self.if_record_log = False  # 日志配置弹窗复选框，是否存储日志
@@ -90,6 +93,7 @@ class OneOsGui:
         self.filepath_entry = tk.Entry()  # main_top的文件选择控件
         self.log_shower = tk.Text()  # main_text左边的操作关键信息打印控件
         self.operate_shower = tk.Text()  # main_text右边的操作统计信息打印控件
+        self.port_test_desc = tk.StringVar()  # main_top开始测试按钮的显示文字(开始测试/停止测试)
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
         """
@@ -103,6 +107,7 @@ class OneOsGui:
         logger.info(f'refresh status to {status}')
         self.curr_port.set('')
         self.if_connected.set('断开')
+        self.port_test_desc.set('开始测试')
         self.filepath_entry.delete(0, tk.END)  # 清空记录文件输入框内容
         self.log_shower.delete(1.0, tk.END)
         self.operate_shower.delete(1.0, tk.END)
@@ -384,15 +389,33 @@ class OneOsGui:
 
     def __main_top_2_3(self, parent):
 
-        if_connected = False
         def test_connect():  # 连接测试
-            print('当前选中的串口：', self.port_cb.get())  # TODO 对选中的串口进行连接测试
-            self.curr_port.set(self.port_cb.get())
-            if_connected = True
-            if if_connected:
-                self.if_connected.set('连接')
+            if self.port_test_desc.get() == '开始测试':
+                temp_port = self.port_cb.get()
+                if temp_port:  # 当前选择了串口号
+                    self.curr_port.set(temp_port)
+                    try:
+                        print(f'当前选择串口：{temp_port}')
+                        print(f'当前串口属性：{self.curr_port.get()}')
+                        # self.connect_to_board()  # TODO 连接开发板
+                        self.port_test_desc.set('停止测试')
+                    except Exception as e:
+                        print(e)
+                        tkinter.messagebox.showerror(title='ERROR', message=str(e))
+                    print(f'更新串口号：{temp_port}')
+                    self.if_connected.set('连接')
+                else:
+                    tkinter.messagebox.showwarning(title='Warning',
+                                                   message='未选中串口号')
+            elif self.port_test_desc.get() == '停止测试':
+                if self.conn is not None:
+                    self.conn.close()
+                self.port_test_desc.set('开始测试')
+            else:
+                print(f'unexcept dest: {self.port_test_desc.get()}')
 
-        b = tk.Button(parent, text='连接测试', font=_FONT_S,
+        self.port_test_desc.set('开始测试')
+        b = tk.Button(parent, textvariable=self.port_test_desc, font=_FONT_S,
                       width=10, bg='whitesmoke',
                       command=test_connect)
         return b
@@ -532,6 +555,11 @@ class OneOsGui:
 
     def run(self):
         self.window_.mainloop()
+
+    # 以上为界面代码，一下为逻辑代码
+    def connect_to_board(self):
+        print(f'当前串口：{self.curr_port.get()}')
+        self.conn = PyBoard(self.curr_port.get(), self.curr_baudrate)
 
 
 if __name__ == '__main__':
