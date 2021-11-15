@@ -383,7 +383,7 @@ class OneOsGui:
         return l
 
     def __main_top_2_2(self, parent):
-        port_list = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5']  # TODO 实际的串口列表
+        port_list = PyBoard.get_list()
         self.port_cb = ttk.Combobox(parent, value=port_list, width=25)
         return self.port_cb
 
