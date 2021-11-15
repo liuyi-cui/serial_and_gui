@@ -71,6 +71,13 @@ class OneOsGui:
         self.if_connected = tk.StringVar()  # 连接状态
         self.record_desc = tk.StringVar()  # 记录文件(bottom栏)
         self.record_filepath = tk.StringVar()  # 记录文件路径
+        self.hid_filepath = ''  # HID存储文件，当work_type为读HID时，等同于record_filepath的值
+        self.license_filepath = ''  # 存储license文件，当work_type为写license时，接收record_filepath的值
+        self.curr_baudrate = 0  # 波特率
+        self.data_digit = 8  # 数据位
+        self.check_digit = None  # 校验位
+        self.stop_digit = 1  # 停止位
+        self.stream_controller = None  # 流控
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
@@ -80,29 +87,43 @@ class OneOsGui:
         self.check_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的校验位下拉菜单
         self.stop_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的停止位下拉菜单
         self.stream_controller_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的流控下拉菜单
-        self.filepath_entry = tk.Entry()  # 文件选择控件
+        self.filepath_entry = tk.Entry()  # main_top的文件选择控件
+        self.log_shower = tk.Text()  # main_text左边的操作关键信息打印控件
+        self.operate_shower = tk.Text()  # main_text右边的操作统计信息打印控件
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
+        """
+        切换工位时，刷新面板展示
+        Args:
+            status: HID/License
+
+        Returns:
+
+        """
         logger.info(f'refresh status to {status}')
-        self.status = status
+        self.curr_port.set('')
+        self.if_connected.set('断开')
+        self.filepath_entry.delete(0, tk.END)  # 清空记录文件输入框内容
+        self.log_shower.delete(1.0, tk.END)
+        self.operate_shower.delete(1.0, tk.END)
         if status == 'HID':
-            self.operate_desc.set('记录文件')
-            self.work_type.set('读HID')
-            self.curr_port.set('')  # 切换工位时，初始化为''
-            self.if_connected.set('断开')  # 切换工位时，初始化为''
-            self.record_desc.set('记录文件')
-            self.record_filepath.set('')  # 切换模式后，初始化该控件信息(bottom栏)
-            self.filepath_entry.delete(0, tk.END)  # 切换模式后，初始化该控件信息(top栏)
+            self._refresh_var_hid()
         elif status == 'License':
-            self.operate_desc.set('license文件')
-            self.work_type.set('写license')
-            self.curr_port.set('')  # 切换工位时，初始化为''
-            self.if_connected.set('断开')  # 切换工位时，初始化为''
-            self.record_desc.set('license文件')
-            self.record_filepath.set('')  # 切换模式后，初始化该控件信息(bottom栏)
-            self.filepath_entry.delete(0, tk.END)  # 切换模式后，初始化该控件信息(top栏)
+            self._refresh_var_license()
         else:
             raise StatusEnumException(f'unexpected status {status}')
+
+    def _refresh_var_hid(self):  # TODO 校验位停止位等暂时固定。切换工位不影响
+        """切换到读hid时更新属性"""
+        self.operate_desc.set('记录文件')
+        self.work_type.set('读HID')
+        self.record_desc.set('记录文件：')
+
+    def _refresh_var_license(self):
+        """切换到写license时更新属性"""
+        self.operate_desc.set('license文件')
+        self.work_type.set('写license')
+        self.record_desc.set('license文件：')
 
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
@@ -502,7 +523,7 @@ class OneOsGui:
         return l
 
     def __main_bottom_4(self, parent):
-        l = tk.Label(parent, text='记录文件:')
+        l = tk.Label(parent, textvariable=self.record_desc)
         return l
 
     def __main_bottom_5(self, parent):
