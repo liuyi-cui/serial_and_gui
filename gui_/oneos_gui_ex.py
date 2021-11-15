@@ -6,9 +6,10 @@ from collections import namedtuple
 from enum import Enum
 from tkinter import ttk
 from tkinter import filedialog
-from serial_.pyboard import PyBoard, PyBoardException
 
 from log import logger
+from serial_.pyboard import PyBoard, PyBoardException
+from utils.file_utils import check_file_suffix
 
 # 字体
 _FONT_S = ('微软雅黑', 8)  # 小号字体
@@ -435,18 +436,19 @@ class OneOsGui:
 
     def __main_top_3_2(self, parent):
 
-        record_hid_filepath = tk.StringVar()  # 接收文件路径
-
         def path_call_back():
             file_path = filedialog.askopenfilename()
             if file_path != '':
-                record_hid_filepath.set(file_path)  # file_path还要传递给状态栏的记录文件
-                self.record_filepath.set(file_path)
+                if check_file_suffix(file_path):
+                    self.record_filepath.set(file_path)
+                else:
+                    tkinter.messagebox.showwarning(title='Warning',
+                                                   message='请选择Excel类型文件')
 
         btn = tk.Button(parent, text='打开', font=_FONT_S,
                         width=10, bg='whitesmoke',
                         command=path_call_back)
-        self.filepath_entry = tk.Entry(parent, textvariable=record_hid_filepath)
+        self.filepath_entry = tk.Entry(parent, textvariable=self.record_filepath)
 
         return self.filepath_entry, btn
 
