@@ -385,8 +385,16 @@ class OneOsGui:
         return l
 
     def get_port_list(self, *args):
+        """获取当前可用的串口列表"""
         self.port_list = PyBoard.get_list()
         self.port_cb['value'] = self.port_list
+        if self.port_list:
+            self.log_shower.insert('end', '检测到串口')
+            for port_ in self.port_list:
+                self.log_shower.insert('end', port_)
+            self.log_shower.insert('end', '\n')
+        else:
+            self.log_shower.insert('end', '未检测到串口\n')
 
     def __main_top_2_2(self, parent):
         self.port_cb = ttk.Combobox(parent, value=self.port_list, width=25)
