@@ -77,6 +77,7 @@ class OneOsGui:
         self.record_filepath = tk.StringVar()  # 记录文件路径
         self.hid_filepath = ''  # HID存储文件，当work_type为读HID时，等同于record_filepath的值
         self.license_filepath = ''  # 存储license文件，当work_type为写license时，接收record_filepath的值
+        self.port_list = []  # 串口列表，main_top串口下拉框展示
         self.curr_baudrate = 0  # 波特率
         self.data_digit = 8  # 数据位
         self.check_digit = None  # 校验位
@@ -383,9 +384,13 @@ class OneOsGui:
         l = tk.Label(parent, text='串口号', font=_FONT_L, padx=10)
         return l
 
+    def get_port_list(self, *args):
+        self.port_list = PyBoard.get_list()
+        self.port_cb['value'] = self.port_list
+
     def __main_top_2_2(self, parent):
-        port_list = PyBoard.get_list()
-        self.port_cb = ttk.Combobox(parent, value=port_list, width=25)
+        self.port_cb = ttk.Combobox(parent, value=self.port_list, width=25)
+        self.port_cb.bind('<Button-1>', self.get_port_list)
         return self.port_cb
 
     def __main_top_2_3(self, parent):
@@ -477,7 +482,7 @@ class OneOsGui:
 
         def clean_log():
             self.log_shower.delete(1.0, tk.END)  # 清除text中文本
-
+            self.log_shower.insert(1.0, '清除日志...\n')
         b = tk.Button(parent, text='清除日志', font=_FONT_S, height=2, width=5,
                       padx=1, pady=1, command=clean_log)
         return b
