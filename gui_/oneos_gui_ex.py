@@ -96,6 +96,7 @@ class OneOsGui:
         self.log_shower = tk.Text()  # main_text左边的操作关键信息打印控件
         self.operate_shower = tk.Text()  # main_text右边的操作统计信息打印控件
         self.port_test_desc = tk.StringVar()  # main_top开始测试按钮的显示文字(开始测试/停止测试)
+        self.start_btn = tk.Button()  # main_top中的开始按钮
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
         """
@@ -368,9 +369,17 @@ class OneOsGui:
 
         def start():  # TODO 开始逻辑(获取HID/写license)
             print('触发开始')
+            print('当前工作状态', self.work_type.get())
+            work_type = self.work_type.get()
+            if work_type == '读HID':
+                self.do_hid_line()  # 读HID工作
+            elif work_type == '写license':
+                self.do_license_line()  # 写license工作
+            else:
+                print(f'错误的工作状态: {work_type}')
 
-        btn = tk.Button(frame, text='开始', bg='gray', font=_FONT_L, command=start)
-        btn.pack(side=tk.LEFT, padx=20)
+        self.start_btn = tk.Button(frame, text='开始', bg='gray', font=_FONT_L, command=start)
+        self.start_btn.pack(side=tk.LEFT, padx=20)
         return frame
 
     def __main_top_2(self, parent):
@@ -383,18 +392,6 @@ class OneOsGui:
     def __main_top_2_1(self, parent):
         l = tk.Label(parent, text='串口号', font=_FONT_L, padx=10)
         return l
-
-    def get_port_list(self, *args):
-        """获取当前可用的串口列表"""
-        self.port_list = PyBoard.get_list()
-        self.port_cb['value'] = self.port_list
-        if self.port_list:
-            self.log_shower.insert('end', '检测到串口')
-            for port_ in self.port_list:
-                self.log_shower.insert('end', port_)
-            self.log_shower.insert('end', '\n')
-        else:
-            self.log_shower.insert('end', '未检测到串口\n')
 
     def __main_top_2_2(self, parent):
         self.port_cb = ttk.Combobox(parent, value=self.port_list, width=25)
@@ -409,10 +406,9 @@ class OneOsGui:
                 if temp_port:  # 当前选择了串口号
                     self.curr_port.set(temp_port)
                     try:
-                        print(f'当前选择串口：{temp_port}')
-                        print(f'当前串口属性：{self.curr_port.get()}')
+                        self.port_test_desc.set('停止测试')  # TODO 点击开始测试按钮后，菜单栏的选项应该也关闭
+                        self.start_btn.config(state=tk.DISABLED)
                         # self.connect_to_board()  # TODO 连接开发板
-                        self.port_test_desc.set('停止测试')
                     except Exception as e:
                         print(e)
                         tkinter.messagebox.showerror(title='ERROR', message=str(e))
@@ -425,6 +421,7 @@ class OneOsGui:
                 if self.conn is not None:
                     self.conn.close()
                 self.port_test_desc.set('开始测试')
+                self.start_btn.config(state=tk.NORMAL)
             else:
                 print(f'unexcept dest: {self.port_test_desc.get()}')
 
@@ -571,10 +568,23 @@ class OneOsGui:
     def run(self):
         self.window_.mainloop()
 
-    # 以上为界面代码，一下为逻辑代码
-    def connect_to_board(self):
+    # 以上为界面代码，以下为逻辑代码
+    def connect_to_board(self):  # TODO
+        """连接串口"""
         print(f'当前串口：{self.curr_port.get()}')
         self.conn = PyBoard(self.curr_port.get(), self.curr_baudrate)
+
+    def get_port_list(self, *args):
+        """获取当前可用的串口列表"""
+        self.port_list = PyBoard.get_list()
+        self.port_cb['value'] = self.port_list
+        if self.port_list:
+            self.log_shower.insert('end', '检测到串口')
+            for port_ in self.port_list:
+                self.log_shower.insert('end', port_)
+            self.log_shower.insert('end', '\n')
+        else:
+            self.log_shower.insert('end', '未检测到串口\n')
 
 
 if __name__ == '__main__':
