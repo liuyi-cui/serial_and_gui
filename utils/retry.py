@@ -31,6 +31,7 @@ def retry(logger=None, tries=3, delay=2, backoff=2):
                             logger.warning(msg)
                         else:
                             logger.error(e)
+                            raise e
                     else:
                         raise e
                 time.sleep(mdelay)

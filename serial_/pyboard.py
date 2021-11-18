@@ -2,10 +2,12 @@
 # 串口操作类
 
 import serial.tools.list_ports
+import time
 
 from log import logger
 from serial_.conserial import ConSerial
 from utils.retry import retry
+from utils.protocol_utils import parse_protocol, build_protocol
 
 
 class PyBoardException(Exception):
@@ -14,6 +16,7 @@ class PyBoardException(Exception):
 
 class PyBoard:
 
+    @retry(logger)
     def __init__(self, port: str, baudrate: int):
         self.con_serial = ConSerial()
         print(f'连接到开发板: {port} {baudrate}')
@@ -40,8 +43,10 @@ class PyBoard:
         Returns:
 
         """
-        command = '发送请求HID的命令'.encode('utf-8')  # TODO 端侧对其请求HID的接口
+        hid_request = build_protocol('')
+        command = hid_request.encode('utf-8')
         self.con_serial.write(command)
+        time.sleep(1)
         ret = None
         while not ret:
             size = self.con_serial.inWaiting()
@@ -78,6 +83,5 @@ class PyBoard:
     def get_list(cls):
         """获取串口列表"""
         port_list = serial.tools.list_ports.comports()
-        print(port_list)
         port_list = [i.name for i in port_list]
         return port_list

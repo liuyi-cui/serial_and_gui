@@ -4,12 +4,16 @@ import tkinter as tk
 import tkinter.messagebox
 from collections import namedtuple
 from enum import Enum
+from pathlib import Path
 from tkinter import ttk
 from tkinter import filedialog
 
 from log import logger
 from serial_.pyboard import PyBoard, PyBoardException
-from utils.file_utils import check_file_suffix
+from utils.entities import BoardProtocol, PayloadData, ProtocolCommand
+from utils.file_utils import check_file_suffix, record_HID_activated, read_HID
+from utils.retry import retry
+from utils.protocol_utils import parse_protocol, build_protocol
 
 # 字体
 _FONT_S = ('微软雅黑', 8)  # 小号字体
@@ -78,11 +82,12 @@ class OneOsGui:
         self.hid_filepath = ''  # HID存储文件，当work_type为读HID时，等同于record_filepath的值
         self.license_filepath = ''  # 存储license文件，当work_type为写license时，接收record_filepath的值
         self.port_list = []  # 串口列表，main_top串口下拉框展示
-        self.curr_baudrate = 0  # 波特率
+        self.curr_baudrate = 115200  # 波特率
         self.data_digit = 8  # 数据位
         self.check_digit = None  # 校验位
         self.stop_digit = 1  # 停止位
         self.stream_controller = None  # 流控
+        self.record_hids = []  # 已经存储过的HID
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
@@ -378,7 +383,7 @@ class OneOsGui:
             else:
                 print(f'错误的工作状态: {work_type}')
 
-        self.start_btn = tk.Button(frame, text='开始', bg='gray', font=_FONT_L, command=start)
+        self.start_btn = tk.Button(frame, text='开始', font=_FONT_L, command=start)
         self.start_btn.pack(side=tk.LEFT, padx=20)
         return frame
 
@@ -408,7 +413,7 @@ class OneOsGui:
                     try:
                         self.port_test_desc.set('停止测试')  # TODO 点击开始测试按钮后，菜单栏的选项应该也关闭
                         self.start_btn.config(state=tk.DISABLED)
-                        # self.connect_to_board()  # TODO 连接开发板
+                        self.connect_to_board()  # TODO 连接开发板
                     except Exception as e:
                         print(e)
                         tkinter.messagebox.showerror(title='ERROR', message=str(e))
@@ -451,6 +456,11 @@ class OneOsGui:
             if file_path != '':
                 if check_file_suffix(file_path):
                     self.record_filepath.set(file_path)
+                    if self.work_type == '读HID':
+                        self.hid_filepath = file_path
+                        self.record_hids = read_HID(file_path)
+                    elif self.work_type == '写license':
+                        self.license_filepath = file_path
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='请选择Excel类型文件')
@@ -479,8 +489,9 @@ class OneOsGui:
 
     def __main_text_left_1(self, parent):  # 日志打印Text
         self.log_shower = tk.Text(parent, width=50, height=15)
-        self.log_shower.tag_config('warn', foreground='red')
+        self.log_shower.tag_config('error', foreground='red')
         self.log_shower.tag_config('confirm', foreground='green')
+        self.log_shower.tag_config('warn', foreground='blue')
         return self.log_shower
 
     def __main_text_left_2(self, parent):  # 清除日志按钮
@@ -567,12 +578,19 @@ class OneOsGui:
 
     def run(self):
         self.window_.mainloop()
+        logger.info('----------------------Process Start-----------------------')
 
     # 以上为界面代码，以下为逻辑代码
     def connect_to_board(self):  # TODO
         """连接串口"""
         print(f'当前串口：{self.curr_port.get()}')
         self.conn = PyBoard(self.curr_port.get(), self.curr_baudrate)
+        if self.conn.is_open:  # 已连接
+            self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接成功\n', 'confirm')
+            self.get_hid(self.conn)  # 串口通信获取HID
+        else:
+            self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接失败\n', 'warn')
+
 
     def get_port_list(self, *args):
         """获取当前可用的串口列表"""
@@ -585,6 +603,36 @@ class OneOsGui:
             self.log_shower.insert('end', '\n')
         else:
             self.log_shower.insert('end', '未检测到串口\n')
+
+    def do_hid_line(self):
+        """开始读HID流程"""
+        self.connect_to_board()  # 同串口建立连接
+
+    @retry(logger)
+    def get_hid(self, serial_obj):
+        """
+        同串口通信，获取设备HID
+        Args:
+            serial_obj: 串口连接对象
+
+        Returns:
+
+        """
+        logger.info('get hid start')
+        hid_response = self.conn.get_HID()
+        board_protocol = parse_protocol(hid_response)
+        hid_value = board_protocol.payload_data.data
+        if hid_value not in self.record_hids:
+            logger.info(f'添加hid：{hid_value}')
+            if (not self.hid_filepath) and Path(self.hid_filepath.exists()):
+                self.record_hids.append(hid_value)
+                try:
+                    record_HID_activated(hid_value, Path(self.hid_filepath))
+                except Exception as e:
+                    logger.exception(e)
+                    self.log_shower.insert(tk.END, 'hid存储失败\n', 'error')
+        else:
+            self.log_shower.insert(tk.END, 'hid存储成功\n', 'confirm')
 
 
 if __name__ == '__main__':

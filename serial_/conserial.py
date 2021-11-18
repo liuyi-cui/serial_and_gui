@@ -16,7 +16,7 @@ class ConSerial:
     @retry(logger)
     def __open(self, port, baudrate):
         logger.info(f'connect to {port} {baudrate}')
-        con = Serial(baudrate)
+        con = Serial(baudrate=baudrate, interCharTimeout=1, timeout=2)
         con.port = port
         con.open()
         return con
