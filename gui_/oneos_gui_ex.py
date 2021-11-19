@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """GUI操作界面"""
+from threading import Thread
 import time
 import tkinter as tk
 import tkinter.messagebox
@@ -8,6 +9,7 @@ from enum import Enum
 from pathlib import Path
 from tkinter import ttk
 from tkinter import filedialog
+from serial.serialutil import SerialException
 
 from dao import HID_License_Map
 from log import logger
@@ -391,9 +393,11 @@ class OneOsGui:
                         self.if_keep_reading = True
                         work_type = self.work_type.get()
                         if work_type == '读HID':
-                            self.do_hid_line()  # 读HID工作
+                            t = Thread(target=self.do_hid_line, daemon=True)
+                            t.start()
                         elif work_type == '写license':
-                            self.do_license_line()  # 写license工作
+                            t = Thread(target=self.do_license_line, daemon=True)
+                            t.start()
                         else:
                             print(f'错误的工作状态: {work_type}')
                     except Exception as e:
@@ -611,7 +615,6 @@ class OneOsGui:
         logger.info('----------------------Process Start-----------------------')
 
     # 以上为界面代码，以下为逻辑代码
-    @retry(logger)
     def connect_to_board(self):
         """连接串口"""
         print(f'当前串口：{self.curr_port.get()}')
@@ -632,19 +635,22 @@ class OneOsGui:
         if self.port_list:
             self.log_shower.insert('end', '检测到串口')
             for port_ in self.port_list:
-                self.log_shower.insert('end', port_)
+                self.log_shower.insert('end', f' {port_}')
             self.log_shower.insert('end', '\n')
         else:
             self.log_shower.insert('end', '未检测到串口\n')
 
     def do_hid_line(self):
         """开始读HID流程"""
+        times = 1
         while self.if_keep_reading:
+            print(f'第{times}次读取')
             if_connected = self.connect_to_board()  # 同串口建立连接
             if if_connected:
                 self.get_hid(self.conn)  # 串口通信获取HID
                 self.conn.close()
-            time.sleep(1)
+            time.sleep(2)
+            times += 1
 
     def get_hid(self, serial_obj):
         """
@@ -656,7 +662,18 @@ class OneOsGui:
 
         """
         logger.info('get hid start')
-        hid_response = serial_obj.get_HID()
+        try:
+            hid_response = serial_obj.get_HID()
+        except SerialException as e:
+            logger.warning('串口无法访问，重试')
+            return
+        except Exception as e:
+            logger.warning('串口访问异常', e)
+            return
+        else:
+            if hid_response is None:
+                self.log_shower.insert(tk.END, '获取HID失败\n', 'error')
+                return
         board_protocol = parse_protocol(hid_response)
         hid_value = board_protocol.payload_data.data
         if hid_value not in self.record_hids:

@@ -49,11 +49,18 @@ class PyBoard:
         self.con_serial.write(command)
         time.sleep(1)
         ret = None
-        while not ret:
+        times = 1
+        while not ret and times <= 4:
             size = self.con_serial.inWaiting()
             if size:
                 ret = self.con_serial.read(size)  # TODO 分段读取
-        return bytestostrhex(ret)
+            else:
+                print(f'第{times}次没有获取到数据')
+                times += 1
+                time.sleep(1)
+        if ret is not None:
+            return bytestostrhex(ret)
+        return ret
 
     @retry(logger)
     def send_license(self, license: str) -> None:  # TODO 添加日志
