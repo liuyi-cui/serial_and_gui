@@ -2,7 +2,12 @@
 import os
 import pandas as pd
 
-from utils.file_utils import store_HID, read_license_by_HID
+from utils.file_utils import store_HID
+
+
+HID_COLUMN_NAME = 'HID(hex string)'
+COMPONENT_COLUMN_NAME = 'Component ID(hex string)'
+LICENSE_COLUMN_NAME = 'License(base64 string)'
 
 
 class HIDDao:
@@ -39,7 +44,7 @@ class HIDDao:
         self.hid_list = []
 
 
-class HID_License_Map:  # TODO 什么时候会调用呢？
+class HID_License_Map:
 
     __instance = None
 
@@ -67,12 +72,12 @@ class HID_License_Map:  # TODO 什么时候会调用呢？
         """
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f'{self.file_path} not exists')
-        df = pd.read_excel(self.file_path, sheet_name='license表', dtype=str)
+        df = pd.read_excel(self.file_path, sheet_name='Sheet1', dtype=str)
         assert sum(sum(pd.isnull(df).values)) == 0, f'{self.file_path}有空值，请检查文件完整性'
-        self.hids = df['设备标志'].tolist()
+        self.hids = df[HID_COLUMN_NAME].tolist()
         for hid in self.hids:
-            components = df[df['设备标志'] == hid]['服务标志'].tolist()  # 组件标识
-            licenses = df[df['设备标志'] == hid]['license号'].tolist()  # licenses号
+            components = df[df[HID_COLUMN_NAME] == hid][COMPONENT_COLUMN_NAME].tolist()  # 组件标识
+            licenses = df[df[HID_COLUMN_NAME] == hid][LICENSE_COLUMN_NAME].tolist()  # licenses号
             self.hid_license_map.update(
                 {hid: dict(zip(components, licenses))}
             )
@@ -92,12 +97,3 @@ class HID_License_Map:  # TODO 什么时候会调用呢？
             return licenses
         else:
             return {}
-
-
-if __name__ == "__main__":
-    file_path = r'input\1022 license表.xls'
-    print(os.path.exists(file_path))
-
-
-
-

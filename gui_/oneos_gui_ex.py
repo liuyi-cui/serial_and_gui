@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """GUI操作界面"""
+import time
 import tkinter as tk
 import tkinter.messagebox
 from collections import namedtuple
@@ -8,8 +9,10 @@ from pathlib import Path
 from tkinter import ttk
 from tkinter import filedialog
 
+from dao import HID_License_Map
 from log import logger
 from serial_.pyboard import PyBoard, PyBoardException
+from utils.convert_utils import b64tostrhex
 from utils.entities import BoardProtocol, PayloadData, ProtocolCommand
 from utils.file_utils import check_file_suffix, record_HID_activated, read_HID
 from utils.retry import retry
@@ -88,6 +91,9 @@ class OneOsGui:
         self.stop_digit = 1  # 停止位
         self.stream_controller = None  # 流控
         self.record_hids = []  # 已经存储过的HID
+        self.hid_license_map = None  # HID_License_Map
+        self.if_keep_reading = False  # 是否一直读取HID
+        self.activated_hids = []  # 发送过license的HID
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
@@ -101,6 +107,8 @@ class OneOsGui:
         self.log_shower = tk.Text()  # main_text左边的操作关键信息打印控件
         self.operate_shower = tk.Text()  # main_text右边的操作统计信息打印控件
         self.port_test_desc = tk.StringVar()  # main_top开始测试按钮的显示文字(开始测试/停止测试)
+        self.start_btn_desc = tk.StringVar()  # main_top开始按钮的文字信息
+        self.start_btn_desc.set('开始')
         self.start_btn = tk.Button()  # main_top中的开始按钮
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
@@ -372,18 +380,35 @@ class OneOsGui:
 
         frame = tk.Frame(parent)
 
-        def start():  # TODO 开始逻辑(获取HID/写license)
-            print('触发开始')
-            print('当前工作状态', self.work_type.get())
-            work_type = self.work_type.get()
-            if work_type == '读HID':
-                self.do_hid_line()  # 读HID工作
-            elif work_type == '写license':
-                self.do_license_line()  # 写license工作
-            else:
-                print(f'错误的工作状态: {work_type}')
+        def start():  # TODO 开始逻辑(获取HID/写license)。基于当前串口选中了的情况
+            if self.start_btn_desc.get() == '开始':
+                temp_port = self.port_cb.get()
+                if temp_port:
+                    self.start_btn_desc.set('停止')
+                    self.start_btn.config(bg='red')
+                    try:
+                        self.curr_port.set(temp_port)
+                        self.if_keep_reading = True
+                        work_type = self.work_type.get()
+                        if work_type == '读HID':
+                            self.do_hid_line()  # 读HID工作
+                        elif work_type == '写license':
+                            self.do_license_line()  # 写license工作
+                        else:
+                            print(f'错误的工作状态: {work_type}')
+                    except Exception as e:
+                        self.start_btn_desc.set('开始')
+                        self.start_btn.config(bg='green')
+                else:
+                    tkinter.messagebox.showwarning(title='Warning',
+                                                   message='未选中串口号')
+            elif self.start_btn_desc.get() == '停止':
+                self.if_keep_reading = False
+                self.start_btn_desc.set('开始')
+                self.start_btn.config(bg='green')
 
-        self.start_btn = tk.Button(frame, text='开始', font=_FONT_L, command=start)
+        self.start_btn = tk.Button(frame, textvariable=self.start_btn_desc,
+                                   bg='green', font=_FONT_L, command=start)
         self.start_btn.pack(side=tk.LEFT, padx=20)
         return frame
 
@@ -411,6 +436,7 @@ class OneOsGui:
                 if temp_port:  # 当前选择了串口号
                     self.curr_port.set(temp_port)
                     try:
+                        self.if_keep_reading = True
                         self.port_test_desc.set('停止测试')  # TODO 点击开始测试按钮后，菜单栏的选项应该也关闭
                         self.start_btn.config(state=tk.DISABLED)
                         self.connect_to_board()  # TODO 连接开发板
@@ -425,6 +451,7 @@ class OneOsGui:
             elif self.port_test_desc.get() == '停止测试':
                 if self.conn is not None:
                     self.conn.close()
+                self.if_keep_reading = False
                 self.port_test_desc.set('开始测试')
                 self.start_btn.config(state=tk.NORMAL)
             else:
@@ -456,11 +483,14 @@ class OneOsGui:
             if file_path != '':
                 if check_file_suffix(file_path):
                     self.record_filepath.set(file_path)
-                    if self.work_type == '读HID':
+                    print('work type:', self.work_type.get())
+                    if self.work_type.get() == '读HID':
                         self.hid_filepath = file_path
                         self.record_hids = read_HID(file_path)
-                    elif self.work_type == '写license':
+                    elif self.work_type.get() == '写license':
                         self.license_filepath = file_path
+                        self.hid_license_map = HID_License_Map(file_path)  # hid_license映射对象
+                        print('写license路径', self.hid_license_map)
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='请选择Excel类型文件')
@@ -581,16 +611,19 @@ class OneOsGui:
         logger.info('----------------------Process Start-----------------------')
 
     # 以上为界面代码，以下为逻辑代码
-    def connect_to_board(self):  # TODO
+    @retry(logger)
+    def connect_to_board(self):
         """连接串口"""
         print(f'当前串口：{self.curr_port.get()}')
-        self.conn = PyBoard(self.curr_port.get(), self.curr_baudrate)
-        if self.conn.is_open:  # 已连接
-            self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接成功\n', 'confirm')
-            self.get_hid(self.conn)  # 串口通信获取HID
-        else:
-            self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接失败\n', 'warn')
-
+        logger.info(f'连接串口 {self.curr_port.get()}')
+        if self.curr_port.get():
+            self.conn = PyBoard(self.curr_port.get(), self.curr_baudrate)
+            if self.conn.is_open:  # 已连接
+                self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接成功\n', 'confirm')
+                return True
+            else:
+                self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接失败\n', 'warn')
+                return False
 
     def get_port_list(self, *args):
         """获取当前可用的串口列表"""
@@ -606,9 +639,13 @@ class OneOsGui:
 
     def do_hid_line(self):
         """开始读HID流程"""
-        self.connect_to_board()  # 同串口建立连接
+        while self.if_keep_reading:
+            if_connected = self.connect_to_board()  # 同串口建立连接
+            if if_connected:
+                self.get_hid(self.conn)  # 串口通信获取HID
+                self.conn.close()
+            time.sleep(1)
 
-    @retry(logger)
     def get_hid(self, serial_obj):
         """
         同串口通信，获取设备HID
@@ -619,12 +656,12 @@ class OneOsGui:
 
         """
         logger.info('get hid start')
-        hid_response = self.conn.get_HID()
+        hid_response = serial_obj.get_HID()
         board_protocol = parse_protocol(hid_response)
         hid_value = board_protocol.payload_data.data
         if hid_value not in self.record_hids:
             logger.info(f'添加hid：{hid_value}')
-            if (not self.hid_filepath) and Path(self.hid_filepath.exists()):
+            if Path(self.hid_filepath).exists():
                 self.record_hids.append(hid_value)
                 try:
                     record_HID_activated(hid_value, Path(self.hid_filepath))
@@ -633,6 +670,30 @@ class OneOsGui:
                     self.log_shower.insert(tk.END, 'hid存储失败\n', 'error')
         else:
             self.log_shower.insert(tk.END, 'hid存储成功\n', 'confirm')
+
+    def do_license_line(self):
+        """开始写license流程"""
+        logger.info('write license start')
+        while self.if_keep_reading:
+            if_connected = self.connect_to_board()
+            if if_connected:
+                hid_response = self.conn.get_HID()
+                # hid_response = '5A000e0081000a000035D9C0AE729DB9E0AF'
+                board_protocol = parse_protocol(hid_response)
+                hid_value = board_protocol.payload_data.data
+                if hid_value not in self.activated_hids:
+                    hid_licenses = self.hid_license_map.get_license(hid_value)
+                    for component_id, license_ in hid_licenses.items():
+                        license_ = b64tostrhex(license_)
+                        protocol = build_protocol(license_, component_id=component_id,
+                                                  command=ProtocolCommand.license_put_request.value,
+                                                  )
+                        print('protocol:', protocol)
+                        self.conn.send_license(protocol)
+                    self.activated_hids.append(hid_value)
+                else:
+                    logger.info(f'{hid_value}本次已经写过license了，这次就不写了')
+            time.sleep(1)
 
 
 if __name__ == '__main__':

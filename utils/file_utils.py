@@ -41,7 +41,7 @@ def read_HID(file_path: str) -> list:
     Returns:
 
     """
-    df_ed = pd.read_excel(file_path, sheet_name='Sheet1')
+    df_ed = pd.read_excel(file_path, sheet_name='Sheet1', engine='openpyxl')
     hids = df_ed[HID_COLUMN_NAME].values.tolist()
     return hids
 

@@ -6,6 +6,7 @@ import time
 
 from log import logger
 from serial_.conserial import ConSerial
+from utils.convert_utils import strhextobytes, bytestostrhex
 from utils.retry import retry
 from utils.protocol_utils import parse_protocol, build_protocol
 
@@ -44,7 +45,7 @@ class PyBoard:
 
         """
         hid_request = build_protocol('')
-        command = hid_request.encode('utf-8')
+        command = strhextobytes(hid_request)
         self.con_serial.write(command)
         time.sleep(1)
         ret = None
@@ -52,7 +53,7 @@ class PyBoard:
             size = self.con_serial.inWaiting()
             if size:
                 ret = self.con_serial.read(size)  # TODO 分段读取
-        return ret.decode('utf-8')
+        return bytestostrhex(ret)
 
     @retry(logger)
     def send_license(self, license: str) -> None:  # TODO 添加日志
