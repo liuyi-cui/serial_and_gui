@@ -56,6 +56,7 @@ class PyBoard:
                 ret = self.con_serial.read(size)  # TODO 分段读取
             else:
                 print(f'第{times}次没有获取到数据')
+                logger.warning(f'第{times}次没有获取到数据')
                 times += 1
                 time.sleep(1)
         if ret is not None:
@@ -105,6 +106,7 @@ class PyBoard:
                 ret = self.con_serial.read(size)  # TODO 分段读取
             else:
                 print(f'第{times}次没有获取到数据')
+                logger.warning(f'第{times}次没有获取到数据')
                 times += 1
                 time.sleep(1)
         if ret is not None:

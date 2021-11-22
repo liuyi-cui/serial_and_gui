@@ -18,7 +18,7 @@ from utils.convert_utils import b64tostrhex
 from utils.entities import BoardProtocol, PayloadData, ProtocolCommand
 from utils.file_utils import check_file_suffix, record_HID_activated, read_HID
 from utils.retry import retry
-from utils.protocol_utils import parse_protocol, build_protocol
+from utils.protocol_utils import parse_protocol, build_protocol, check_payload
 
 # 字体
 _FONT_S = ('微软雅黑', 8)  # 小号字体
@@ -696,14 +696,29 @@ class OneOsGui:
         logger.info('write license start')
         while self.if_keep_reading:
             if_connected = self.connect_to_board()
+            logger.info(f'connected to {self.curr_port.get()}')
             if_success = True
             if if_connected:
                 try:
                     hid_response = self.conn.get_HID()
                 except Exception as e:
+                    self.conn.close()
                     time.sleep(1)  # 可能有板子的插拔动作
                     continue
-                board_protocol = parse_protocol(hid_response)
+                else:
+                    if hid_response is None:
+                        self.conn.close()
+                        time.sleep(1)
+                        continue
+                logger.info(f'get hid response')
+
+                try:
+                    board_protocol = parse_protocol(hid_response)
+                except Exception as e:
+                    self.conn.close()
+                    time.sleep(1)  # 可能有板子的插拔动作
+                    return
+                logger.info('parse hid success')
                 hid_value = board_protocol.payload_data.data
                 if hid_value not in self.activated_hids:
                     hid_licenses = self.hid_license_map.get_license(hid_value)
@@ -747,12 +762,15 @@ class OneOsGui:
             logger.exception(e)
             self.log_shower.insert(tk.END, '获取license写入结果失败\n', 'error')
             return
-        # 验证license是否写入成功 TODO
         logger.info(f'get response: {resp}')
         if resp is not None:
-            board_protocol = parse_protocol(resp)
+            try:
+                board_protocol = parse_protocol(resp)
+            except Exception as e:
+                logger.exception(e)
+                return
             payload_data = board_protocol.payload_data
-            if payload_data.command == '0082' and payload_data.data == '00':  # TODO 不同情况下payload_data的不同值
+            if check_payload(payload_data, 'license_put_response'):  # TODO 不同情况下payload_data的不同值
                 self.log_shower.insert(tk.END, 'license写入成功\n', 'confirm')
                 return True
             else:
@@ -760,8 +778,6 @@ class OneOsGui:
                 self.log_shower.insert(tk.END, 'license写入错误\n', 'error')
         else:  # 没有正确获取到返回
             self.log_shower.insert(tk.END, 'license写入失败\n', 'error')
-
-
 
 
 if __name__ == '__main__':

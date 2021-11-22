@@ -50,15 +50,35 @@ class ProtocolCommand(Enum):
     license_get_request = '0003'  # license申请指令。设备端发出  TODO设备端什么情况会发出该条指令
     license_clean_request = '0004'  # license存储分区擦除指令。上位机发出 TODO
     license_clean_response = '0084'  # 回复license擦除指令结果
+    reset_response = '00c0'  # 复位 因为某些错误，端侧返回复位命令
+
+
+class DataError(Enum):
+
+    LICENSE_PROCESS_OK = '00'
+    LICENSE_READ_HID_FAIL = '01'
+    LICENSE_CPID_NOT_MATCH = '02'
+    LICENSE_NULL_POINTER = '03'
+    LICENSE_LIC_SIZE_INVALID = '04'
+    LICENSE_SM4_INIT_FAIL = '05'
+    LICENSE_DECRYPT_FAIL = '06'
+    LICENSE_BODY_LEN_INVALID = '07'
+    LICENSE_HID_VERIFY_FAIL = '08'
+    LICENSE_PARA_NOT_ENOUGH = '09'
+    LICENSE_CPID_NONE_TABLE = '0A'
+    LICENSE_FLASH_PART_INVALID = '0B'
+    LICENSE_MAGIC_MALLOC_FAIL = '0C'
+    LICENSE_MAGIC_READ_FAIL = '0D'
+    LICENSE_MAGIC_WRITE_FAIL = '0E'
+    LICENSE_FLASH_ERASE_FAIL = '0F'
+    LICENSE_WRITE_FAIL = '10'
+    LICENSE_READ_POINTER_NULL = '11'
+    LICENSE_READ_FAIL = '12'
+    LICENSE_UART_NO_HEADER = '14'
+    LICENSE_UART_RECV_TIMEOUT = '15'
+    LICENSE_UART_CHECK_SUM_FAIL = '16'
+    LICENSE_CMD_ERR = '17'
 
 
 if __name__ == '__main__':
-    # protocol_value = '5a000600010002000003'
-    protocol_value = '5A00120081000E0000540049001350564846323020F5'
-    print(protocol_value[HEAD])
-    print(protocol_value[PAYLOAD_LENGTH])
-    print(protocol_value[COMMAND])
-    print(protocol_value[DATA_LENGTH])
-    print(protocol_value[COMPONENT_ID])
-    print(protocol_value[DATA])
-    print(protocol_value[CHECK_SUM])
+    pass

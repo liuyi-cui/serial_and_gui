@@ -20,9 +20,14 @@ class ProtocolSumException(Exception):
     pass
 
 
+class ProtocolCommandException(Exception):
+    """协议指令错误"""
+    pass
+
+
 def check_head(head: str) -> bool:
     """校验帧头"""
-    if head != '5a':
+    if head != '5A':
         return False
     return True
 
@@ -60,14 +65,14 @@ def parse_protocol(protocol_value: str):
     # 一条信息长度最小为10字节(帧头1长度2指令2长度2组件id2数据0校验和1)
     if len(protocol_value) < 20:
         raise ProtocolException(f'信息长度小于10字节')
-    head = protocol_value[HEAD]
-    payload_length = protocol_value[PAYLOAD_LENGTH]
-    payload_data_ = protocol_value[PAYLOAD_DATA_]
-    command = protocol_value[COMMAND]
-    data_length = protocol_value[DATA_LENGTH]
-    component_id = protocol_value[COMPONENT_ID]
-    data = protocol_value[DATA]
-    check_sum = protocol_value[CHECK_SUM]
+    head = protocol_value[HEAD].upper()
+    payload_length = protocol_value[PAYLOAD_LENGTH].upper()
+    payload_data_ = protocol_value[PAYLOAD_DATA_].upper()
+    command = protocol_value[COMMAND].upper()
+    data_length = protocol_value[DATA_LENGTH].upper()
+    component_id = protocol_value[COMPONENT_ID].upper()
+    data = protocol_value[DATA].upper()
+    check_sum = protocol_value[CHECK_SUM].upper()
 
     if not check_head(head):
         raise ProtocolHeadException(f'错误的帧头{head}')
@@ -76,6 +81,7 @@ def parse_protocol(protocol_value: str):
     if not check_data_length(data_length, component_id + data):
         raise ProtocolException('payload数据长度校验不通过')
     if not check_check_sum(payload_data_, check_sum):
+        print(payload_data_, check_sum)
         raise ProtocolSumException('校验和校验不通过')
     payload_data = PayloadData(command, data_length, component_id, data)
     board_protocol = BoardProtocol(head, payload_length, payload_data, check_sum)
@@ -109,7 +115,7 @@ def calc_check_sum(data: str) -> str:
 
     temp_ret = hex(res)
     ret = temp_ret[-2:].replace('x', '0')
-    return ret
+    return ret.upper()
 
 
 def build_protocol(data, component_id='0000', command=ProtocolCommand.hid_request.value,
@@ -131,3 +137,25 @@ def build_protocol(data, component_id='0000', command=ProtocolCommand.hid_reques
     check_num = calc_check_sum(payload_data)
     protocol_package = head + payload_data_length + command + data_length + component_id + data + check_num
     return protocol_package
+
+
+def check_payload(payload, command_type: str) -> bool:
+    """
+    验证payload是否正确
+    Args:
+        payload: PayloadData
+        command_type: ProtocolCommand.
+
+    Returns:
+
+    """
+    if not hasattr(ProtocolCommand, command_type):
+        raise ProtocolCommandException
+
+    excepted_command = getattr(ProtocolCommand, command_type).value
+    command = payload.command
+    data = payload.data
+    if command == excepted_command and data == DataError.LICENSE_PROCESS_OK.value:
+        return True
+    else:
+        return False
