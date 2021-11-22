@@ -722,6 +722,12 @@ class OneOsGui:
                 hid_value = board_protocol.payload_data.data
                 if hid_value not in self.activated_hids:
                     hid_licenses = self.hid_license_map.get_license(hid_value)
+                    if not hid_licenses:  # 该hid没有获取到相应的license
+                        logger.warning(f'{hid_value} 没有获取到license')
+                        self.log_shower.insert(tk.END, 'license写入失败: license文件中没有找到该hid\n', 'error')
+                        self.conn.close()
+                        time.sleep(1)
+                        continue
                     for component_id, license_ in hid_licenses.items():
                         license_ = b64tostrhex(license_)
                         protocol = build_protocol(license_, component_id=component_id,
@@ -770,12 +776,13 @@ class OneOsGui:
                 logger.exception(e)
                 return
             payload_data = board_protocol.payload_data
-            if check_payload(payload_data, 'license_put_response'):  # TODO 不同情况下payload_data的不同值
+            if check_payload(payload_data, 'license_put_response'):
                 self.log_shower.insert(tk.END, 'license写入成功\n', 'confirm')
                 return True
             else:
                 print(payload_data.command, payload_data.data)
-                self.log_shower.insert(tk.END, 'license写入错误\n', 'error')
+                self.log_shower.insert(tk.END, f'license写入错误, '
+                                               f'指令{payload_data.command}数据{payload_data.data}\n', 'error')
         else:  # 没有正确获取到返回
             self.log_shower.insert(tk.END, 'license写入失败\n', 'error')
 
