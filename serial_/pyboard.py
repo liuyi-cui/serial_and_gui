@@ -73,9 +73,10 @@ class PyBoard:
 
         """
         if license:
-            license_byte = license.encode('utf-8')
+            # if len(license) % 2 != 0:
+            #     raise PyBoardException('Odd-length string')
+            license_byte = strhextobytes(license)  # TODO 奇偶判断
             self.con_serial.write(license_byte)  # 分批次写入
-            self.con_serial.write('\x04')  # 回车？\r\n?
 
     @retry(logger)
     def confirm_license_correct(self) -> bool:  # TODO 添加日志
@@ -93,3 +94,19 @@ class PyBoard:
         port_list = serial.tools.list_ports.comports()
         port_list = [i.name for i in port_list]
         return port_list
+
+    @retry(logger)
+    def read_response(self):
+        ret = None
+        times = 1
+        while not ret and times <= 4:
+            size = self.con_serial.inWaiting()
+            if size:
+                ret = self.con_serial.read(size)  # TODO 分段读取
+            else:
+                print(f'第{times}次没有获取到数据')
+                times += 1
+                time.sleep(1)
+        if ret is not None:
+            return bytestostrhex(ret)
+        return ret

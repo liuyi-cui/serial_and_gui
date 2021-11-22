@@ -398,11 +398,13 @@ class OneOsGui:
                         elif work_type == '写license':
                             t = Thread(target=self.do_license_line, daemon=True)
                             t.start()
+                            self.if_connected.set('已连接')
                         else:
                             print(f'错误的工作状态: {work_type}')
                     except Exception as e:
                         self.start_btn_desc.set('开始')
                         self.start_btn.config(bg='green')
+                        self.if_connected.set('断开')
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='未选中串口号')
@@ -410,6 +412,7 @@ class OneOsGui:
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开始')
                 self.start_btn.config(bg='green')
+                self.if_connected.set('断开')
 
         self.start_btn = tk.Button(frame, textvariable=self.start_btn_desc,
                                    bg='green', font=_FONT_L, command=start)
@@ -693,9 +696,13 @@ class OneOsGui:
         logger.info('write license start')
         while self.if_keep_reading:
             if_connected = self.connect_to_board()
+            if_success = True
             if if_connected:
-                hid_response = self.conn.get_HID()
-                # hid_response = '5A000e0081000a000035D9C0AE729DB9E0AF'
+                try:
+                    hid_response = self.conn.get_HID()
+                except Exception as e:
+                    time.sleep(1)  # 可能有板子的插拔动作
+                    continue
                 board_protocol = parse_protocol(hid_response)
                 hid_value = board_protocol.payload_data.data
                 if hid_value not in self.activated_hids:
@@ -706,11 +713,55 @@ class OneOsGui:
                                                   command=ProtocolCommand.license_put_request.value,
                                                   )
                         print('protocol:', protocol)
-                        self.conn.send_license(protocol)
-                    self.activated_hids.append(hid_value)
+                        if not self.send_license(self.conn, protocol):
+                            if_success = False
+                        break
+                    if if_success:
+                        self.activated_hids.append(hid_value)
                 else:
                     logger.info(f'{hid_value}本次已经写过license了，这次就不写了')
+            self.conn.close()
             time.sleep(1)
+
+
+    def send_license(self, serial_obj, protocol):
+        logger.info('send license start')
+        try:
+            serial_obj.send_license(protocol)
+        except SerialException as e:
+            logger.warning('串口无法访问')
+            self.log_shower.insert(tk.END, '串口无法通信\n', 'error')
+            return
+        except Exception as e:
+            logger.exception(e)
+            self.log_shower.insert(tk.END, '写入license失败\n', 'error')
+            return
+
+        try:
+            resp = serial_obj.read_response()
+        except SerialException as e:
+            logger.warning('未获取到license写入结果')
+            self.log_shower.insert(tk.END, '未获取到license写入结果\n', 'error')
+            return
+        except Exception as e:
+            logger.exception(e)
+            self.log_shower.insert(tk.END, '获取license写入结果失败\n', 'error')
+            return
+        # 验证license是否写入成功 TODO
+        logger.info(f'get response: {resp}')
+        if resp is not None:
+            board_protocol = parse_protocol(resp)
+            payload_data = board_protocol.payload_data
+            if payload_data.command == '0082' and payload_data.data == '00':  # TODO 不同情况下payload_data的不同值
+                self.log_shower.insert(tk.END, 'license写入成功\n', 'confirm')
+                return True
+            else:
+                print(payload_data.command, payload_data.data)
+                self.log_shower.insert(tk.END, 'license写入错误\n', 'error')
+        else:  # 没有正确获取到返回
+            self.log_shower.insert(tk.END, 'license写入失败\n', 'error')
+
+
 
 
 if __name__ == '__main__':
