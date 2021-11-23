@@ -82,6 +82,7 @@ class OneOsGui:
         self.work_type = tk.StringVar()  # 工位
         self.curr_port = tk.StringVar()  # 串口号
         self.if_connected = tk.StringVar()  # 连接状态
+        self.run_status = tk.StringVar()  # 运行状态
         self.record_desc = tk.StringVar()  # 记录文件(bottom栏)
         self.record_filepath = tk.StringVar()  # 记录文件路径
         self.hid_filepath = ''  # HID存储文件，当work_type为读HID时，等同于record_filepath的值
@@ -112,6 +113,8 @@ class OneOsGui:
         self.start_btn_desc = tk.StringVar()  # main_top开始按钮的文字信息
         self.start_btn_desc.set('开始')
         self.start_btn = tk.Button()  # main_top中的开始按钮
+        self.port_status_label = tk.Label()  # main_bottom中的串口状态label
+        self.run_status_label = tk.Label()  # main_bottom中的运行状态label
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
         """
@@ -125,6 +128,7 @@ class OneOsGui:
         logger.info(f'refresh status to {status}')
         self.curr_port.set('')
         self.if_connected.set('断开')
+        self.run_status.set('停止')
         self.port_test_desc.set('开始测试')
         self.filepath_entry.delete(0, tk.END)  # 清空记录文件输入框内容
         self.log_shower.delete(1.0, tk.END)
@@ -395,18 +399,17 @@ class OneOsGui:
                         if work_type == '读HID':
                             t = Thread(target=self.do_hid_line, daemon=True)
                             t.start()
-                            self.if_connected.set('已连接')
+                            self.__turn_on()
                         elif work_type == '写license':
                             t = Thread(target=self.do_license_line, daemon=True)
                             t.start()
-                            self.if_connected.set('已连接')
-
+                            self.__turn_on()
                         else:
                             print(f'错误的工作状态: {work_type}')
                     except Exception as e:
                         self.start_btn_desc.set('开始')
                         self.start_btn.config(fg='green')
-                        self.if_connected.set('断开')
+                        self.__turn_off()
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='未选中串口号')
@@ -414,7 +417,7 @@ class OneOsGui:
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开始')
                 self.start_btn.config(fg='green')
-                self.if_connected.set('断开')
+                self.__turn_off()
 
         self.start_btn = tk.Button(frame, textvariable=self.start_btn_desc,
                                    fg='green', bg='#918B8B', font=_FONT_L, command=start)
@@ -453,7 +456,7 @@ class OneOsGui:
                         print(e)
                         tkinter.messagebox.showerror(title='ERROR', message=str(e))
                     print(f'更新串口号：{temp_port}')
-                    self.if_connected.set('连接')
+                    self.__turn_on()
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='未选中串口号')
@@ -463,6 +466,7 @@ class OneOsGui:
                 self.if_keep_reading = False
                 self.port_test_desc.set('开始测试')
                 self.start_btn.config(state=tk.NORMAL)
+                self.__turn_off()
             else:
                 print(f'unexcept dest: {self.port_test_desc.get()}')
 
@@ -592,32 +596,44 @@ class OneOsGui:
         return l
 
     def __main_bottom_2(self, parent):
-        l = tk.Label(parent, text='串口号:')
-        return l
-
-    def __main_bottom_2_value(self, parent):
-        l = tk.Label(parent, textvariable=self.curr_port)
-        return l
-
-    def __main_bottom_3(self, parent):
         l = tk.Label(parent, text='串口状态:')
         return l
 
-    def __main_bottom_3_value(self, parent):
-        l = tk.Label(parent, textvariable=self.if_connected)  # TODO,该控件应该到属性中设置，方便连接时候更改颜色。连接上为绿色，未连接为黑色
+    def __main_bottom_2_value(self, parent):
+        self.port_status_label = tk.Label(parent, textvariable=self.if_connected)
+        return self.port_status_label
+
+    def __main_bottom_3(self, parent):
+        l = tk.Label(parent, text='运行状态:')
         return l
+
+    def __main_bottom_3_value(self, parent):
+        self.run_status_label = tk.Label(parent, textvariable=self.run_status)
+        return self.run_status_label
 
     def __main_bottom_4(self, parent):
-        l = tk.Label(parent, textvariable=self.record_desc)
-        return l
+        self.record_filepath_label = tk.Label(parent, textvariable=self.record_desc)
+        return self.record_filepath_label
 
     def __main_bottom_5(self, parent):
-        l = tk.Label(parent, textvariable=self.record_filepath)
+        l = tk.Label(parent, textvariable=self.record_filepath, fg='green')
         return l
 
     def run(self):
         self.window_.mainloop()
         logger.info('----------------------Process Start-----------------------')
+
+    def __turn_on(self):  # 连接上串口时，更新属性
+        self.if_connected.set(f'{self.curr_port.get()}已连接')
+        self.run_status.set('工作中')
+        self.port_status_label.config(fg='green')
+        self.run_status_label.config(fg='green')
+
+    def __turn_off(self):  # 断开串口连接时，更新属性
+        self.if_connected.set(f'断开')
+        self.run_status.set('停止')
+        self.port_status_label.config(fg='black')
+        self.run_status_label.config(fg='black')
 
     # 以上为界面代码，以下为逻辑代码
     def connect_to_board(self):
