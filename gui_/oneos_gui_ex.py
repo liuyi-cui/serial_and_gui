@@ -382,12 +382,12 @@ class OneOsGui:
 
         frame = tk.Frame(parent)
 
-        def start():  # TODO 开始逻辑(获取HID/写license)。基于当前串口选中了的情况
+        def start():
             if self.start_btn_desc.get() == '开始':
                 temp_port = self.port_cb.get()
                 if temp_port:
                     self.start_btn_desc.set('停止')
-                    self.start_btn.config(bg='red')
+                    self.start_btn.config(fg='red')
                     try:
                         self.curr_port.set(temp_port)
                         self.if_keep_reading = True
@@ -395,15 +395,17 @@ class OneOsGui:
                         if work_type == '读HID':
                             t = Thread(target=self.do_hid_line, daemon=True)
                             t.start()
+                            self.if_connected.set('已连接')
                         elif work_type == '写license':
                             t = Thread(target=self.do_license_line, daemon=True)
                             t.start()
                             self.if_connected.set('已连接')
+
                         else:
                             print(f'错误的工作状态: {work_type}')
                     except Exception as e:
                         self.start_btn_desc.set('开始')
-                        self.start_btn.config(bg='green')
+                        self.start_btn.config(fg='green')
                         self.if_connected.set('断开')
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
@@ -411,11 +413,11 @@ class OneOsGui:
             elif self.start_btn_desc.get() == '停止':
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开始')
-                self.start_btn.config(bg='green')
+                self.start_btn.config(fg='green')
                 self.if_connected.set('断开')
 
         self.start_btn = tk.Button(frame, textvariable=self.start_btn_desc,
-                                   bg='green', font=_FONT_L, command=start)
+                                   fg='green', bg='#918B8B', font=_FONT_L, command=start)
         self.start_btn.pack(side=tk.LEFT, padx=20)
         return frame
 
@@ -466,7 +468,7 @@ class OneOsGui:
 
         self.port_test_desc.set('开始测试')
         b = tk.Button(parent, textvariable=self.port_test_desc, font=_FONT_S,
-                      width=10, bg='whitesmoke',
+                      width=10, bg='#918B8B',
                       command=test_connect)
         return b
 
@@ -586,7 +588,7 @@ class OneOsGui:
         return l
 
     def __main_bottom_1_value(self, parent):  # 工位的值
-        l = tk.Label(parent, textvariable=self.work_type)
+        l = tk.Label(parent, textvariable=self.work_type, fg='green')
         return l
 
     def __main_bottom_2(self, parent):
@@ -602,7 +604,7 @@ class OneOsGui:
         return l
 
     def __main_bottom_3_value(self, parent):
-        l = tk.Label(parent, textvariable=self.if_connected)
+        l = tk.Label(parent, textvariable=self.if_connected)  # TODO,该控件应该到属性中设置，方便连接时候更改颜色。连接上为绿色，未连接为黑色
         return l
 
     def __main_bottom_4(self, parent):
@@ -743,7 +745,6 @@ class OneOsGui:
                     logger.info(f'{hid_value}本次已经写过license了，这次就不写了')
             self.conn.close()
             time.sleep(1)
-
 
     def send_license(self, serial_obj, protocol):
         logger.info('send license start')
