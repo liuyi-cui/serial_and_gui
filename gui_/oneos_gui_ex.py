@@ -64,6 +64,8 @@ class StatusEnumException(Exception):
 
 class OneOsGui:
 
+    MAX_WAIT_TIME = 3
+
     def __init__(self):
         self.window_ = tk.Tk()
         center_window(self.window_, *SIZE_MAIN)
@@ -74,6 +76,7 @@ class OneOsGui:
         self.body()
         self.window_.pack_propagate(True)
         self.conn = None  # 串口连接对象
+        self.wait_time = 0  # 等待时间。
 
     def init_var(self):
         self.if_record_log = False  # 日志配置弹窗复选框，是否存储日志
@@ -115,6 +118,9 @@ class OneOsGui:
         self.start_btn = tk.Button()  # main_top中的开始按钮
         self.port_status_label = tk.Label()  # main_bottom中的串口状态label
         self.run_status_label = tk.Label()  # main_bottom中的运行状态label
+
+    def __reset_wait_time(self):
+        self.wait_time = 0
 
     def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
         """
@@ -388,6 +394,7 @@ class OneOsGui:
 
         def start():
             if self.start_btn_desc.get() == '开始':
+                self.__reset_wait_time()
                 temp_port = self.port_cb.get()
                 if temp_port:
                     self.start_btn_desc.set('停止')
@@ -399,11 +406,9 @@ class OneOsGui:
                         if work_type == '读HID':
                             t = Thread(target=self.do_hid_line, daemon=True)
                             t.start()
-                            self.__turn_on()
                         elif work_type == '写license':
                             t = Thread(target=self.do_license_line, daemon=True)
                             t.start()
-                            self.__turn_on()
                         else:
                             print(f'错误的工作状态: {work_type}')
                     except Exception as e:
@@ -414,6 +419,7 @@ class OneOsGui:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='未选中串口号')
             elif self.start_btn_desc.get() == '停止':
+                self.__reset_wait_time()
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开始')
                 self.start_btn.config(fg='green')
@@ -628,6 +634,7 @@ class OneOsGui:
         self.run_status.set('工作中')
         self.port_status_label.config(fg='green')
         self.run_status_label.config(fg='green')
+        self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接成功\n')
 
     def __turn_off(self):  # 断开串口连接时，更新属性
         self.if_connected.set(f'断开')
@@ -638,12 +645,11 @@ class OneOsGui:
     # 以上为界面代码，以下为逻辑代码
     def connect_to_board(self):
         """连接串口"""
-        print(f'当前串口：{self.curr_port.get()}')
         logger.info(f'连接串口 {self.curr_port.get()}')
         if self.curr_port.get():
             self.conn = PyBoard(self.curr_port.get(), self.curr_baudrate)
             if self.conn.is_open:  # 已连接
-                self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接成功\n', 'confirm')
+                self.__turn_on()
                 return True
             else:
                 self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接失败\n', 'warn')
@@ -663,15 +669,22 @@ class OneOsGui:
 
     def do_hid_line(self):
         """开始读HID流程"""
-        times = 1
         while self.if_keep_reading:
-            print(f'第{times}次读取')
+            print(f'wait_time: {self.wait_time}')
+            if self.wait_time >= self.MAX_WAIT_TIME:
+                if self.conn.is_open:
+                    self.conn.close()
+                self.if_keep_reading = False
+                self.start_btn_desc.set('开始')
+                self.start_btn.config(fg='green')
+                self.__turn_off()
+                return
+
             if_connected = self.connect_to_board()  # 同串口建立连接
             if if_connected:
                 self.get_hid(self.conn)  # 串口通信获取HID
                 self.conn.close()
             time.sleep(2)
-            times += 1
 
     def get_hid(self, serial_obj):
         """
@@ -686,18 +699,23 @@ class OneOsGui:
         try:
             hid_response = serial_obj.get_HID()
         except SerialException as e:
-            logger.warning('串口无法访问，重试')
+            logger.warning('串口访问异常', e)
+            self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
             return
         except Exception as e:
             logger.warning('串口访问异常', e)
+            self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
             return
         else:
             if hid_response is None:
-                self.log_shower.insert(tk.END, '获取HID失败\n', 'error')
+                self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
                 return
+        self.log_shower.insert(tk.END, f'设备HID读取成功\n')
         board_protocol = parse_protocol(hid_response)
         hid_value = board_protocol.payload_data.data
+
         if hid_value not in self.record_hids:
+            self.__reset_wait_time()  # 重置等待时间
             logger.info(f'添加hid：{hid_value}')
             if Path(self.hid_filepath).exists():
                 self.record_hids.append(hid_value)
@@ -705,9 +723,13 @@ class OneOsGui:
                     record_HID_activated(hid_value, Path(self.hid_filepath))
                 except Exception as e:
                     logger.exception(e)
-                    self.log_shower.insert(tk.END, 'hid存储失败\n', 'error')
+                    self.log_shower.insert(tk.END, f'设备{hid_value}HID存储失败\n', 'error')
+                else:
+                    self.log_shower.insert(tk.END, f'设备{hid_value}HID存储完成，请更换设备...\n', 'confirm')
         else:
-            self.log_shower.insert(tk.END, 'hid存储成功\n', 'confirm')
+            self.wait_time += 1
+            self.log_shower.insert(tk.END, f'设备{hid_value}已完成，请更换设备...\n', 'warn')
+            time.sleep(3)
 
     def do_license_line(self):
         """开始写license流程"""
