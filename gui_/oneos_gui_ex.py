@@ -114,7 +114,7 @@ class OneOsGui:
         self.operate_shower = tk.Text()  # main_text右边的操作统计信息打印控件
         self.port_test_desc = tk.StringVar()  # main_top开始测试按钮的显示文字(开始测试/停止测试)
         self.start_btn_desc = tk.StringVar()  # main_top开始按钮的文字信息
-        self.start_btn_desc.set('开始')
+        self.start_btn_desc.set('开  始')
         self.start_btn = tk.Button()  # main_top中的开始按钮
         self.port_status_label = tk.Label()  # main_bottom中的串口状态label
         self.run_status_label = tk.Label()  # main_bottom中的运行状态label
@@ -134,7 +134,7 @@ class OneOsGui:
         logger.info(f'refresh status to {status}')
         self.curr_port.set('')
         self.if_connected.set('断开')
-        self.run_status.set('停止')
+        self.run_status.set('停  止')
         self.port_test_desc.set('开始测试')
         self.filepath_entry.delete(0, tk.END)  # 清空记录文件输入框内容
         self.log_shower.delete(1.0, tk.END)
@@ -393,11 +393,11 @@ class OneOsGui:
         frame = tk.Frame(parent)
 
         def start():
-            if self.start_btn_desc.get() == '开始':
+            if self.start_btn_desc.get() == '开  始':
                 self.__reset_wait_time()
                 temp_port = self.port_cb.get()
                 if temp_port:
-                    self.start_btn_desc.set('停止')
+                    self.start_btn_desc.set('停  止')
                     self.start_btn.config(fg='red')
                     try:
                         self.curr_port.set(temp_port)
@@ -412,20 +412,20 @@ class OneOsGui:
                         else:
                             print(f'错误的工作状态: {work_type}')
                     except Exception as e:
-                        self.start_btn_desc.set('开始')
+                        self.start_btn_desc.set('开  始')
                         self.start_btn.config(fg='green')
                         self.__turn_off()
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='未选中串口号')
-            elif self.start_btn_desc.get() == '停止':
+            elif self.start_btn_desc.get() == '停  止':
                 self.__reset_wait_time()
                 self.if_keep_reading = False
-                self.start_btn_desc.set('开始')
+                self.start_btn_desc.set('开  始')
                 self.start_btn.config(fg='green')
                 self.__turn_off()
 
-        self.start_btn = tk.Button(frame, textvariable=self.start_btn_desc,
+        self.start_btn = tk.Button(frame, textvariable=self.start_btn_desc, height=1, width=8,
                                    fg='green', bg='#918B8B', font=_FONT_L, command=start)
         self.start_btn.pack(side=tk.LEFT, padx=20)
         return frame
@@ -515,7 +515,7 @@ class OneOsGui:
                                                    message='请选择Excel类型文件')
 
         btn = tk.Button(parent, text='打开', font=_FONT_S,
-                        width=10, bg='whitesmoke',
+                        width=10, bg='#918B8B',
                         command=path_call_back)
         self.filepath_entry = tk.Entry(parent, textvariable=self.record_filepath)
 
@@ -548,8 +548,8 @@ class OneOsGui:
         def clean_log():
             self.log_shower.delete(1.0, tk.END)  # 清除text中文本
             self.log_shower.insert(1.0, '清除日志...\n')
-        b = tk.Button(parent, text='清除日志', font=_FONT_S, height=2, width=5,
-                      padx=1, pady=1, command=clean_log)
+        b = tk.Button(parent, text='清除日志', font=_FONT_S, height=1, width=8,
+                      bg='#918B8B', padx=1, pady=1, command=clean_log)
         return b
 
     def __main_text_right(self, parent):  # 操作统计Text控件，清除统计按钮
@@ -570,8 +570,8 @@ class OneOsGui:
         def clean_log():
             self.operate_shower.delete(1.0, tk.END)  # 清除text中文本
 
-        b = tk.Button(parent, text='清除统计', font=_FONT_S, height=2, width=5,
-                      padx=1, pady=1, command=clean_log)
+        b = tk.Button(parent, text='清除统计', font=_FONT_S, height=1, width=8,
+                      bg='#918B8B', padx=1, pady=1, command=clean_log)
         return b
 
     def main_bottom(self, parent):
@@ -638,7 +638,7 @@ class OneOsGui:
 
     def __turn_off(self):  # 断开串口连接时，更新属性
         self.if_connected.set(f'断开')
-        self.run_status.set('停止')
+        self.run_status.set('停  止')
         self.port_status_label.config(fg='black')
         self.run_status_label.config(fg='black')
 
@@ -675,7 +675,7 @@ class OneOsGui:
                 if self.conn.is_open:
                     self.conn.close()
                 self.if_keep_reading = False
-                self.start_btn_desc.set('开始')
+                self.start_btn_desc.set('开  始')
                 self.start_btn.config(fg='green')
                 self.__turn_off()
                 return
