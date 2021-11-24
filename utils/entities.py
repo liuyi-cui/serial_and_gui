@@ -80,5 +80,10 @@ class DataError(Enum):
     LICENSE_CMD_ERR = '17'
 
 
+Error_Data_Map = {i.value: i.name for i in DataError.__members__.values()}
+
+
 if __name__ == '__main__':
-    pass
+    data = '10'
+    err_type = Error_Data_Map.get(data)
+    print(err_type)

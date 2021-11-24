@@ -15,7 +15,7 @@ from dao import HID_License_Map
 from log import logger
 from serial_.pyboard import PyBoard, PyBoardException
 from utils.convert_utils import b64tostrhex
-from utils.entities import BoardProtocol, PayloadData, ProtocolCommand
+from utils.entities import BoardProtocol, PayloadData, ProtocolCommand, DataError, Error_Data_Map
 from utils.file_utils import check_file_suffix, record_HID_activated, read_HID
 from utils.retry import retry
 from utils.protocol_utils import parse_protocol, build_protocol, check_payload
@@ -103,6 +103,8 @@ class OneOsGui:
         self.hid_license_map = None  # HID_License_Map
         self.if_keep_reading = False  # 是否一直读取HID
         self.activated_hids = []  # 发送过license的HID
+        self.success_license = []  # 成功激活的license
+        self.failed_license = []  # 激活失败的license
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
@@ -161,13 +163,25 @@ class OneOsGui:
         self.work_type.set('写license')
         self.record_desc.set('license文件：')
 
-    def __refresh_statistics(self):
-        """刷新统计栏信息"""
+    def __refresh_statistics_hid(self):
+        """读hid过程中，刷新统计栏信息"""
+        self.operate_shower.delete(1.0, tk.END)
         self.operate_shower.insert(tk.END, '本轮操作统计\n', 'head')
         self.operate_shower.insert(tk.END, f'新增HID{len(self.new_add_hids)}个\n'
                                            f'成功{len(self.new_success_hids)}个\n'
-                                           f'失败{len(self.new_failed_hids)}个\n', 'content')
+                                           f'失败{len(set(self.new_failed_hids))}个\n', 'content')
         self.operate_shower.insert(tk.END, f'文件记录HID总共{len(self.record_hids)}个\n\n', 'tail')
+
+    def __refresh_statistics_license(self):
+        """写license过程中，刷新统计栏信息"""
+        self.operate_shower.delete(1.0, tk.END)
+        self.operate_shower.insert(tk.END, '本轮操作统计\n', 'head')
+        self.operate_shower.insert(tk.END, f'完成HID {len(set(self.activated_hids))} 个\n'
+                                           f'成功license {len(set(self.success_license))} 个\n'
+                                           f'失败license {len(set(self.failed_license))} 个\n',
+                                   'content')
+        self.operate_shower.insert(tk.END, f'导入HID {len(set(self.hid_license_map.hids))} 个 '
+                                           f'license {len(set(self.hid_license_map.licenses))} 个')
 
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
@@ -520,6 +534,9 @@ class OneOsGui:
                     elif self.work_type.get() == '写license':
                         self.license_filepath = file_path
                         self.hid_license_map = HID_License_Map(file_path)  # hid_license映射对象
+                        self.log_shower.insert(tk.END, f'导入license文件，'
+                                                       f'共导入HID{len(set(self.hid_license_map.hids))}个, '
+                                                       f'license{len(set(self.hid_license_map.licenses))}个\n')
                         print('写license路径', self.hid_license_map)
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
@@ -738,19 +755,19 @@ class OneOsGui:
                     record_HID_activated(hid_value, Path(self.hid_filepath))
                 except Exception as e:
                     self.new_failed_hids.append(hid_value)
-                    self.__refresh_statistics()
+                    self.__refresh_statistics_hid()
                     logger.exception(e)
                     self.log_shower.insert(tk.END, f'设备{hid_value}HID存储失败\n', 'error')
                 else:
                     self.record_hids.append(hid_value)
                     self.new_success_hids.append(hid_value)
                     self.new_add_hids.append(hid_value)
-                    self.__refresh_statistics()
+                    self.__refresh_statistics_hid()
                     self.log_shower.insert(tk.END, f'设备{hid_value}HID存储完成，请更换设备...\n', 'confirm')
         else:
             if hid_value not in self.new_success_hids:
                 self.new_success_hids.append(hid_value)
-            self.__refresh_statistics()  # TODO 按理说，这个分支不应该刷新统计结果
+            self.__refresh_statistics_hid()  # TODO 按理说，这个分支不应该刷新统计结果
             self.wait_time += 1
             self.log_shower.insert(tk.END, f'设备{hid_value}已完成，请更换设备...\n', 'warn')
             time.sleep(3)
@@ -758,7 +775,18 @@ class OneOsGui:
     def do_license_line(self):
         """开始写license流程"""
         logger.info('write license start')
+        self.log_shower.insert(tk.END, '开始写license流程\n')
         while self.if_keep_reading:
+            print(f'wait time: {self.wait_time}')
+            if self.wait_time >= self.MAX_WAIT_TIME:
+                if self.conn.is_open:
+                    self.conn.close()
+                self.if_keep_reading = False
+                self.start_btn_desc.set('开  始')
+                self.start_btn.config(fg='green')
+                self.__turn_off()
+                return
+
             if_connected = self.connect_to_board()
             logger.info(f'connected to {self.curr_port.get()}')
             if_success = True
@@ -771,6 +799,7 @@ class OneOsGui:
                     continue
                 else:
                     if hid_response is None:
+                        self.log_shower.insert(f'获取设备HID失败\n', 'error')
                         self.conn.close()
                         time.sleep(1)
                         continue
@@ -784,29 +813,48 @@ class OneOsGui:
                     return
                 logger.info('parse hid success')
                 hid_value = board_protocol.payload_data.data
+                self.log_shower.insert(tk.END, f'获取设备HID成功，HID {hid_value}\n')
                 if hid_value not in self.activated_hids:
                     hid_licenses = self.hid_license_map.get_license(hid_value)
                     if not hid_licenses:  # 该hid没有获取到相应的license
-                        logger.warning(f'{hid_value} 没有获取到license')
-                        self.log_shower.insert(tk.END, 'license写入失败: license文件中没有找到该hid\n', 'error')
+                        logger.warning(f'{hid_value} 没有获取到license\n')
+                        self.log_shower.insert(tk.END, 'license写入失败: license文件中没有找到该hid\n')
                         self.conn.close()
                         time.sleep(1)
                         continue
+                    self.log_shower.insert(tk.END, f'对设备{hid_value}，写入license\n')
                     for component_id, license_ in hid_licenses.items():
-                        license_ = b64tostrhex(license_)
+                        try:
+                            license_ = b64tostrhex(license_)
+                        except Exception as e:
+                            logger.error(f'license {license_}转码错误')
+                            self.log_shower.insert(tk.END, f'{component_id}写入license{license_[:20]}...失败，'
+                                                           f'license转码错误\n', 'warn')
+                            self.conn.close()
+                            time.sleep(1)
+                            continue
                         protocol = build_protocol(license_, component_id=component_id,
                                                   command=ProtocolCommand.license_put_request.value,
                                                   )
-                        print('protocol:', protocol)
                         if not self.send_license(self.conn, protocol):
+                            self.log_shower.insert(tk.END, f'{component_id}写入license{license_[:20]}...失败\n', 'warn')
+                            self.failed_license.append(license_)
+                            self.__refresh_statistics_license()
                             if_success = False
-                        break
+                        else:
+                            self.log_shower.insert(tk.END, f'{component_id}写入license{license_}成功\n', 'warn')
+                            self.success_license.append(license_)
+                            self.__refresh_statistics_license()
                     if if_success:
+                        self.log_shower.insert(tk.END, f'设备{hid_value}写入license成功\n', 'confirm')
                         self.activated_hids.append(hid_value)
+                    else:
+                        self.log_shower.insert(tk.END, f'设备{hid_value}写入license失败\n', 'error')
                 else:
-                    logger.info(f'{hid_value}本次已经写过license了，这次就不写了')
+                    self.wait_time += 1
+                    self.log_shower.insert(tk.END, f'设备{hid_value}已经写入过license，请更换设备...\n', 'warn')
             self.conn.close()
-            time.sleep(1)
+            time.sleep(3)
 
     def send_license(self, serial_obj, protocol):
         logger.info('send license start')
@@ -814,22 +862,22 @@ class OneOsGui:
             serial_obj.send_license(protocol)
         except SerialException as e:
             logger.warning('串口无法访问')
-            self.log_shower.insert(tk.END, '串口无法通信\n', 'error')
+            self.log_shower.insert(tk.END, '串口无法通信\n')
             return
         except Exception as e:
             logger.exception(e)
-            self.log_shower.insert(tk.END, '写入license失败\n', 'error')
+            self.log_shower.insert(tk.END, '写入license失败\n')
             return
 
         try:
             resp = serial_obj.read_response()
         except SerialException as e:
             logger.warning('未获取到license写入结果')
-            self.log_shower.insert(tk.END, '未获取到license写入结果\n', 'error')
+            self.log_shower.insert(tk.END, '未获取到license写入结果\n')
             return
         except Exception as e:
             logger.exception(e)
-            self.log_shower.insert(tk.END, '获取license写入结果失败\n', 'error')
+            self.log_shower.insert(tk.END, '获取license写入结果失败\n')
             return
         logger.info(f'get response: {resp}')
         if resp is not None:
@@ -840,12 +888,19 @@ class OneOsGui:
                 return
             payload_data = board_protocol.payload_data
             if check_payload(payload_data, 'license_put_response'):
+                logger.info('license写入成功')
                 self.log_shower.insert(tk.END, 'license写入成功\n', 'confirm')
                 return True
             else:
-                print(payload_data.command, payload_data.data)
-                self.log_shower.insert(tk.END, f'license写入错误, '
-                                               f'指令{payload_data.command}数据{payload_data.data}\n', 'error')
+                error_type = Error_Data_Map.get(payload_data.data)
+                if error_type is not None:
+                    logger.info(f'license写入失败，指令{payload_data.command}，')
+                    self.log_shower.insert(tk.END, f'license写入错误, '
+                                                   f'指令{payload_data.command} 错误类型{error_type}\n')
+                else:
+                    logger.info(f'license写入失败，指令{payload_data.command}，')
+                    self.log_shower.insert(tk.END, f'license写入错误, '
+                                                   f'指令{payload_data.command}数据{payload_data.data}\n')
         else:  # 没有正确获取到返回
             self.log_shower.insert(tk.END, 'license写入失败\n', 'error')
 
