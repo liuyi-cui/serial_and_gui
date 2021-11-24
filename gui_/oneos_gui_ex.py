@@ -97,6 +97,9 @@ class OneOsGui:
         self.stop_digit = 1  # 停止位
         self.stream_controller = None  # 流控
         self.record_hids = []  # 已经存储过的HID
+        self.new_add_hids = []  # 一次开始流程中，新增的HID。停止按钮时清零
+        self.new_success_hids = []  # 一次开始流程中，成功记录HID的数量(包括重复的)。停止按钮时清零
+        self.new_failed_hids = []  # 一次HID开始流程中，失败的数量。停止按钮时清零
         self.hid_license_map = None  # HID_License_Map
         self.if_keep_reading = False  # 是否一直读取HID
         self.activated_hids = []  # 发送过license的HID
@@ -157,6 +160,14 @@ class OneOsGui:
         self.operate_desc.set('license文件')
         self.work_type.set('写license')
         self.record_desc.set('license文件：')
+
+    def __refresh_statistics(self):
+        """刷新统计栏信息"""
+        self.operate_shower.insert(tk.END, '本轮操作统计\n', 'head')
+        self.operate_shower.insert(tk.END, f'新增HID{len(self.new_add_hids)}个\n'
+                                           f'成功{len(self.new_success_hids)}个\n'
+                                           f'失败{len(self.new_failed_hids)}个\n', 'content')
+        self.operate_shower.insert(tk.END, f'文件记录HID总共{len(self.record_hids)}个\n\n', 'tail')
 
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
@@ -560,9 +571,10 @@ class OneOsGui:
         return frame_right
 
     def __main_text_right_1(self, parent):  # 日志打印Text
-        self.operate_shower = tk.Text(parent, width=30, height=15)
-        self.operate_shower.tag_config('warn', foreground='red')
-        self.operate_shower.tag_config('confirm', foreground='green')
+        self.operate_shower = tk.Text(parent, width=30, height=15, font=_FONT_L)
+        self.operate_shower.tag_config('head', lmargin1=25, rmargin=10, spacing1=15, spacing3=15)
+        self.operate_shower.tag_config('content', lmargin1=25, rmargin=10, spacing1=5)
+        self.operate_shower.tag_config('tail', lmargin1=25, rmargin=10, spacing1=20)
         return self.operate_shower
 
     def __main_text_right_2(self, parent):  # 清除日志按钮
@@ -641,6 +653,9 @@ class OneOsGui:
         self.run_status.set('停  止')
         self.port_status_label.config(fg='black')
         self.run_status_label.config(fg='black')
+        self.new_add_hids = []
+        self.new_success_hids = []
+        self.new_failed_hids = []
 
     # 以上为界面代码，以下为逻辑代码
     def connect_to_board(self):
@@ -718,15 +733,24 @@ class OneOsGui:
             self.__reset_wait_time()  # 重置等待时间
             logger.info(f'添加hid：{hid_value}')
             if Path(self.hid_filepath).exists():
-                self.record_hids.append(hid_value)
+
                 try:
                     record_HID_activated(hid_value, Path(self.hid_filepath))
                 except Exception as e:
+                    self.new_failed_hids.append(hid_value)
+                    self.__refresh_statistics()
                     logger.exception(e)
                     self.log_shower.insert(tk.END, f'设备{hid_value}HID存储失败\n', 'error')
                 else:
+                    self.record_hids.append(hid_value)
+                    self.new_success_hids.append(hid_value)
+                    self.new_add_hids.append(hid_value)
+                    self.__refresh_statistics()
                     self.log_shower.insert(tk.END, f'设备{hid_value}HID存储完成，请更换设备...\n', 'confirm')
         else:
+            if hid_value not in self.new_success_hids:
+                self.new_success_hids.append(hid_value)
+            self.__refresh_statistics()  # TODO 按理说，这个分支不应该刷新统计结果
             self.wait_time += 1
             self.log_shower.insert(tk.END, f'设备{hid_value}已完成，请更换设备...\n', 'warn')
             time.sleep(3)
