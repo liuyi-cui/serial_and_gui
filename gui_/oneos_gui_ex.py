@@ -846,6 +846,8 @@ class OneOsGui:
                             logger.error(f'license {license_}转码错误')
                             self.log_shower.insert(tk.END, f'{component_id}写入license{license_[:20]}...失败，'
                                                            f'license转码错误\n', 'warn')
+                            self.failed_license.append(license_)
+                            self.__refresh_statistics_license()
                             time.sleep(1)
                             continue
                         protocol = build_protocol(license_, component_id=component_id,

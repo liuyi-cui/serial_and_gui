@@ -5,9 +5,13 @@ import pandas as pd
 from utils.file_utils import store_HID
 
 
-HID_COLUMN_NAME = 'HID(hex string)'
-COMPONENT_COLUMN_NAME = 'Component ID(hex string)'
-LICENSE_COLUMN_NAME = 'License(base64 string)'
+HID_COLUMN_NAME = '设备HID'
+TIPS_COLUMNS_NAME = '提示'
+LICENSE_FILE_SHEET_NAME = '设备license.xls'
+
+
+class DaoException(Exception):
+    pass
 
 
 class HIDDao:
@@ -73,15 +77,24 @@ class HID_License_Map:
         """
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f'{self.file_path} not exists')
-        df = pd.read_excel(self.file_path, sheet_name='Sheet1', dtype=str)
+        df = pd.read_excel(self.file_path, sheet_name=LICENSE_FILE_SHEET_NAME, dtype=str)
         self.hids = df[HID_COLUMN_NAME].tolist()
-        self.licenses = df[LICENSE_COLUMN_NAME].tolist()
+        components_columns = self._get_components_columns(df)
         for hid in self.hids:
-            components = df[df[HID_COLUMN_NAME] == hid][COMPONENT_COLUMN_NAME].tolist()  # 组件标识
-            licenses = df[df[HID_COLUMN_NAME] == hid][LICENSE_COLUMN_NAME].tolist()  # licenses号
-            self.hid_license_map.update(
-                {hid: dict(zip(components, licenses))}
-            )
+            component_license_map = dict()
+            for component_name in components_columns:
+                if component_name.find('/') == -1:
+                    raise DaoException('license文件中组件列中组件名和组件id需要用斜杠/分隔')
+                component_id = component_name.split('/')[-1]
+                license = df[df[HID_COLUMN_NAME] == hid].iloc[0,][component_name]
+                component_license_map.update({component_id: license})
+            self.hid_license_map.update({hid: component_license_map})
+
+    def _get_components_columns(self, df):
+        """获取组件标识列名称"""
+        columns = df.columns.tolist()
+        components_columns = set(columns) - set([HID_COLUMN_NAME, TIPS_COLUMNS_NAME])
+        return components_columns
 
     def get_license(self, hid: str) -> dict:
         """

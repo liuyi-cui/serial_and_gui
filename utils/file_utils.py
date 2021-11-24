@@ -6,7 +6,7 @@ from pathlib import Path
 from log import logger
 
 
-HID_COLUMN_NAME = 'HID'
+HID_COLUMN_NAME = '设备HID'
 
 
 def store_HID(hids: list, file_path: Path):
