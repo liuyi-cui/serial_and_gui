@@ -170,7 +170,7 @@ class OneOsGui:
         self.operate_shower.insert(tk.END, f'新增HID{len(self.new_add_hids)}个\n'
                                            f'成功{len(self.new_success_hids)}个\n'
                                            f'失败{len(set(self.new_failed_hids))}个\n', 'content')
-        self.operate_shower.insert(tk.END, f'文件记录HID总共{len(self.record_hids)}个\n\n', 'tail')
+        self.operate_shower.insert(tk.END, f'文件记录HID总共{len(self.record_hids)}个\n', 'tail')
 
     def __refresh_statistics_license(self):
         """写license过程中，刷新统计栏信息"""
@@ -181,7 +181,8 @@ class OneOsGui:
                                            f'失败license {len(set(self.failed_license))} 个\n',
                                    'content')
         self.operate_shower.insert(tk.END, f'导入HID {len(set(self.hid_license_map.hids))} 个 '
-                                           f'license {len(set(self.hid_license_map.licenses))} 个')
+                                           f'license {len(set(self.hid_license_map.licenses))} 个',
+                                   'tail')
 
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
@@ -493,7 +494,7 @@ class OneOsGui:
                                                    message='未选中串口号')
             elif self.port_test_desc.get() == '停止测试':
                 if self.conn is not None:
-                    self.conn.close()
+                    self.disconnect_to_board()
                 self.if_keep_reading = False
                 self.port_test_desc.set('开始测试')
                 self.start_btn.config(state=tk.NORMAL)
@@ -687,6 +688,14 @@ class OneOsGui:
                 self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接失败\n', 'warn')
                 return False
 
+    def disconnect_to_board(self, if_print=True):
+        """断开串口连接"""
+        logger.info(f'断开串口连接 {self.curr_port.get()}')
+        if self.conn.is_open:
+            self.conn.close()
+            if if_print:
+                self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}断开连接\n\n')
+
     def get_port_list(self, *args):
         """获取当前可用的串口列表"""
         self.port_list = PyBoard.get_list()
@@ -704,8 +713,8 @@ class OneOsGui:
         while self.if_keep_reading:
             print(f'wait_time: {self.wait_time}')
             if self.wait_time >= self.MAX_WAIT_TIME:
-                if self.conn.is_open:
-                    self.conn.close()
+                self.disconnect_to_board(if_print=False)
+                self.log_shower.insert(tk.END, '连接未操作时间过长，自动断开连接\n\n', 'warn')
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开  始')
                 self.start_btn.config(fg='green')
@@ -715,8 +724,6 @@ class OneOsGui:
             if_connected = self.connect_to_board()  # 同串口建立连接
             if if_connected:
                 self.get_hid(self.conn)  # 串口通信获取HID
-                self.conn.close()
-            time.sleep(2)
 
     def get_hid(self, serial_obj):
         """
@@ -733,17 +740,24 @@ class OneOsGui:
         except SerialException as e:
             logger.warning('串口访问异常', e)
             self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
+            self.disconnect_to_board()
             return
         except Exception as e:
             logger.warning('串口访问异常', e)
             self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
+            self.disconnect_to_board()
             return
         else:
             if hid_response is None:
                 self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
+                self.disconnect_to_board()
                 return
         self.log_shower.insert(tk.END, f'设备HID读取成功\n')
-        board_protocol = parse_protocol(hid_response)
+        try:
+            board_protocol = parse_protocol(hid_response)
+        except Exception as e:
+            self.disconnect_to_board()
+            return
         hid_value = board_protocol.payload_data.data
 
         if hid_value not in self.record_hids:
@@ -758,18 +772,21 @@ class OneOsGui:
                     self.__refresh_statistics_hid()
                     logger.exception(e)
                     self.log_shower.insert(tk.END, f'设备{hid_value}HID存储失败\n', 'error')
+                    self.disconnect_to_board()
                 else:
                     self.record_hids.append(hid_value)
                     self.new_success_hids.append(hid_value)
                     self.new_add_hids.append(hid_value)
                     self.__refresh_statistics_hid()
                     self.log_shower.insert(tk.END, f'设备{hid_value}HID存储完成，请更换设备...\n', 'confirm')
+                    self.disconnect_to_board()
         else:
             if hid_value not in self.new_success_hids:
                 self.new_success_hids.append(hid_value)
-            self.__refresh_statistics_hid()  # TODO 按理说，这个分支不应该刷新统计结果
+            self.__refresh_statistics_hid()
             self.wait_time += 1
             self.log_shower.insert(tk.END, f'设备{hid_value}已完成，请更换设备...\n', 'warn')
+            self.disconnect_to_board()
             time.sleep(3)
 
     def do_license_line(self):
@@ -779,8 +796,7 @@ class OneOsGui:
         while self.if_keep_reading:
             print(f'wait time: {self.wait_time}')
             if self.wait_time >= self.MAX_WAIT_TIME:
-                if self.conn.is_open:
-                    self.conn.close()
+                self.disconnect_to_board()
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开  始')
                 self.start_btn.config(fg='green')
@@ -794,13 +810,13 @@ class OneOsGui:
                 try:
                     hid_response = self.conn.get_HID()
                 except Exception as e:
-                    self.conn.close()
+                    self.disconnect_to_board()
                     time.sleep(1)  # 可能有板子的插拔动作
                     continue
                 else:
                     if hid_response is None:
-                        self.log_shower.insert(f'获取设备HID失败\n', 'error')
-                        self.conn.close()
+                        self.log_shower.insert(tk.END, f'获取设备HID失败\n', 'error')
+                        self.disconnect_to_board()
                         time.sleep(1)
                         continue
                 logger.info(f'get hid response')
@@ -808,9 +824,9 @@ class OneOsGui:
                 try:
                     board_protocol = parse_protocol(hid_response)
                 except Exception as e:
-                    self.conn.close()
+                    self.disconnect_to_board()
                     time.sleep(1)  # 可能有板子的插拔动作
-                    return
+                    continue
                 logger.info('parse hid success')
                 hid_value = board_protocol.payload_data.data
                 self.log_shower.insert(tk.END, f'获取设备HID成功，HID {hid_value}\n')
@@ -819,7 +835,7 @@ class OneOsGui:
                     if not hid_licenses:  # 该hid没有获取到相应的license
                         logger.warning(f'{hid_value} 没有获取到license\n')
                         self.log_shower.insert(tk.END, 'license写入失败: license文件中没有找到该hid\n')
-                        self.conn.close()
+                        self.disconnect_to_board()
                         time.sleep(1)
                         continue
                     self.log_shower.insert(tk.END, f'对设备{hid_value}，写入license\n')
@@ -830,7 +846,6 @@ class OneOsGui:
                             logger.error(f'license {license_}转码错误')
                             self.log_shower.insert(tk.END, f'{component_id}写入license{license_[:20]}...失败，'
                                                            f'license转码错误\n', 'warn')
-                            self.conn.close()
                             time.sleep(1)
                             continue
                         protocol = build_protocol(license_, component_id=component_id,
@@ -848,12 +863,13 @@ class OneOsGui:
                     if if_success:
                         self.log_shower.insert(tk.END, f'设备{hid_value}写入license成功\n', 'confirm')
                         self.activated_hids.append(hid_value)
+                        self.__refresh_statistics_license()
                     else:
                         self.log_shower.insert(tk.END, f'设备{hid_value}写入license失败\n', 'error')
                 else:
                     self.wait_time += 1
                     self.log_shower.insert(tk.END, f'设备{hid_value}已经写入过license，请更换设备...\n', 'warn')
-            self.conn.close()
+            self.disconnect_to_board()
             time.sleep(3)
 
     def send_license(self, serial_obj, protocol):

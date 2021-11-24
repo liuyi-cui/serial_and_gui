@@ -57,6 +57,7 @@ class HID_License_Map:
         if not HID_License_Map.__instance:
             self.file_path = file_path  # 映射文件地址
             self.hids = []
+            self.licenses = []
             self.hid_license_map = dict()
             self._load()
             HID_License_Map.__instance = self
@@ -73,8 +74,8 @@ class HID_License_Map:
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f'{self.file_path} not exists')
         df = pd.read_excel(self.file_path, sheet_name='Sheet1', dtype=str)
-        assert sum(sum(pd.isnull(df).values)) == 0, f'{self.file_path}有空值，请检查文件完整性'
         self.hids = df[HID_COLUMN_NAME].tolist()
+        self.licenses = df[LICENSE_COLUMN_NAME].tolist()
         for hid in self.hids:
             components = df[df[HID_COLUMN_NAME] == hid][COMPONENT_COLUMN_NAME].tolist()  # 组件标识
             licenses = df[df[HID_COLUMN_NAME] == hid][LICENSE_COLUMN_NAME].tolist()  # licenses号

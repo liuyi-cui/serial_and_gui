@@ -35,6 +35,7 @@ class PyBoard:
 
     def close(self):
         self.con_serial.close()
+        self.is_open = False
         self.__update_state()
 
     @retry(logger)
