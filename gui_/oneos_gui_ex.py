@@ -181,7 +181,7 @@ class OneOsGui:
                                            f'失败license {len(set(self.failed_license))} 个\n',
                                    'content')
         self.operate_shower.insert(tk.END, f'导入HID {len(set(self.hid_license_map.hids))} 个 '
-                                           f'license {len(set(self.hid_license_map.licenses))} 个',
+                                           f'license {self.hid_license_map.licenses_counts} 个',
                                    'tail')
 
     def change_status_to_hid(self):
