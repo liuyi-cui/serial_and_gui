@@ -61,7 +61,7 @@ class HID_License_Map:
         if not HID_License_Map.__instance:
             self.file_path = file_path  # 映射文件地址
             self.hids = []
-            self.licenses = []
+            self.licenses_counts = 0
             self.hid_license_map = dict()
             self._load()
             HID_License_Map.__instance = self
@@ -80,6 +80,7 @@ class HID_License_Map:
         df = pd.read_excel(self.file_path, sheet_name=LICENSE_FILE_SHEET_NAME, dtype=str)
         self.hids = df[HID_COLUMN_NAME].tolist()
         components_columns = self._get_components_columns(df)
+        self.licenses_counts = self._calc_license_counts(df, components_columns)
         for hid in self.hids:
             component_license_map = dict()
             for component_name in components_columns:
@@ -111,3 +112,7 @@ class HID_License_Map:
             return licenses
         else:
             return {}
+
+    def _calc_license_counts(self, df, components_columns):
+        """计算components_columns列非空值个数，即为license个数"""
+        return sum(df[list(components_columns)].notnull().sum())

@@ -11,7 +11,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from serial.serialutil import SerialException
 
-from dao import HID_License_Map
+from dao import HID_License_Map, DaoException
 from log import logger
 from serial_.pyboard import PyBoard, PyBoardException
 from utils.convert_utils import b64tostrhex
@@ -534,10 +534,16 @@ class OneOsGui:
                         self.record_hids = read_HID(file_path)
                     elif self.work_type.get() == '写license':
                         self.license_filepath = file_path
-                        self.hid_license_map = HID_License_Map(file_path)  # hid_license映射对象
+                        try:
+                            self.hid_license_map = HID_License_Map(file_path)  # hid_license映射对象
+                        except DaoException:
+                            tkinter.messagebox.showerror(title='Error',
+                                                           message='license文件中组件列中组件名和组件id需要用斜杠/分隔')
+                            self.record_filepath.set('')
+                            return
                         self.log_shower.insert(tk.END, f'导入license文件，'
                                                        f'共导入HID{len(set(self.hid_license_map.hids))}个, '
-                                                       f'license{len(set(self.hid_license_map.licenses))}个\n')
+                                                       f'license{self.hid_license_map.licenses_counts}个\n')
                         print('写license路径', self.hid_license_map)
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
@@ -835,6 +841,7 @@ class OneOsGui:
                     if not hid_licenses:  # 该hid没有获取到相应的license
                         logger.warning(f'{hid_value} 没有获取到license\n')
                         self.log_shower.insert(tk.END, 'license写入失败: license文件中没有找到该hid\n')
+                        self.__refresh_statistics_license()
                         self.disconnect_to_board()
                         time.sleep(1)
                         continue
