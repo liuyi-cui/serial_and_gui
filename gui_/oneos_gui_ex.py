@@ -10,9 +10,10 @@ from pathlib import Path
 from tkinter import ttk
 from tkinter import filedialog
 from serial.serialutil import SerialException
+from logging import handlers
 
 from dao import HID_License_Map, DaoException
-from log import logger
+from log import logger, OperateLogger
 from serial_.pyboard import PyBoard, PyBoardException
 from utils.convert_utils import b64tostrhex
 from utils.entities import BoardProtocol, PayloadData, ProtocolCommand, DataError, Error_Data_Map
@@ -71,6 +72,7 @@ class OneOsGui:
         center_window(self.window_, *SIZE_MAIN)
         self.window_.title(TITLE_MAIN)
         self.window_.grab_set()  # 窗口显示在最前方
+        self.operate_logger = OperateLogger()  # 记录操作日志
         self.init_var()  # 初始化相关变量
         self.refresh_var()  # 刷新变量值
         self.body()
@@ -80,7 +82,7 @@ class OneOsGui:
 
     def init_var(self):
         self.if_record_log = False  # 日志配置弹窗复选框，是否存储日志
-        self.log_filepath = ''  # 日志存储路径
+        self.log_filepath = tk.StringVar()  # 日志存储路径
         self.operate_desc = tk.StringVar()  # 记录文件/license文件(main_top栏)
         self.work_type = tk.StringVar()  # 工位
         self.curr_port = tk.StringVar()  # 串口号
@@ -108,6 +110,7 @@ class OneOsGui:
 
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
+        self.operate_log_size_entry = tk.Entry()  # 菜单栏日志配置弹窗地日志大小控件
         self.port_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的串口下拉菜单
         self.baudrate_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的波特率下拉菜单
         self.data_digit_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的数据位下拉菜单
@@ -183,6 +186,14 @@ class OneOsGui:
         self.operate_shower.insert(tk.END, f'导入HID {len(set(self.hid_license_map.hids))} 个 '
                                            f'license {self.hid_license_map.licenses_counts} 个',
                                    'tail')
+
+    def __do_log_shower_insert(self, content, start=tk.END, tag=None):
+        if tag is None:
+            self.log_shower.insert(start, content)
+            self.operate_logger.logger.info(content.strip())
+        else:
+            self.log_shower.insert(start, content, tag)
+            self.operate_logger.logger.info(f'{tag}-{content.strip()}')
 
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
@@ -329,12 +340,13 @@ class OneOsGui:
 
         def refresh_if_record_status():
             if if_record_log.get() == 0:
-                print('不开启日志记录')
+                self.if_record_log = False
+                logger.info('关闭操作过程日志记录')
             elif if_record_log.get() == 1:
-                print('开启日志记录')
                 self.if_record_log = True
+                logger.info('开启操作过程日志记录')
             else:
-                print('未知状态的日志记录')
+                logger.warning('未知状态的日志记录', if_record_log.get())
 
         if_record_log = tk.IntVar()
         record_log_cb = tk.Checkbutton(frame, text='记录日志', variable=if_record_log,
@@ -356,16 +368,14 @@ class OneOsGui:
 
     def __top_log_config_2_2(self, parent):
 
-        log_filepath = tk.StringVar()  # 接收日志路径
-
         def path_call_back():
-            file_path = filedialog.askopenfilename()
+            file_path = filedialog.asksaveasfilename()
             if file_path != '':
-                log_filepath.set(file_path)  # TODO 此处的日志路径需要传递给后台使用
+                self.log_filepath.set(file_path)
 
         btn = tk.Button(parent, text='打开', font=_FONT_S,
                         width=10, bg='whitesmoke', command=path_call_back)
-        self.log_path_entry = tk.Entry(parent, textvariable=log_filepath)
+        self.log_path_entry = tk.Entry(parent, textvariable=self.log_filepath)
 
         return self.log_path_entry, btn
 
@@ -381,8 +391,8 @@ class OneOsGui:
         return l
 
     def __top_log_config_3_2(self, parent):
-        e = tk.Entry(parent, show=None)  # 明文形式显示 TODO 确定按钮时需要接收输入框中值，并且要做纯数字的判断
-        return e
+        self.operate_log_size_entry = tk.Entry(parent, show=None)  # 明文形式显示 TODO 确定按钮时需要接收输入框中值，并且要做纯数字的判断
+        return self.operate_log_size_entry
 
     def __top_log_config_3_3(self, parent):
         l = tk.Label(parent, text='MB')
@@ -395,17 +405,28 @@ class OneOsGui:
             parent.destroy()
 
         def confirm():  # 确定时，需要获取是否需要存储日志，日志存储路径和日志的大小
-            print('是否需要存储日志', self.if_record_log)  # 是否需要存储日志
-            print('日志存储路径', self.record_filepath)  # 日志存储路径
-            print()
+            if self.if_record_log:
+                operate_log_file_path = self.log_filepath.get()
+                operate_log_size = self.operate_log_size_entry.get()
+                if operate_log_size:
+                    try:
+                        operate_log_size = float(operate_log_size)
+                    except Exception as e:
+                        tkinter.messagebox.showwarning(title='Warning', message='日志大小需要为纯数字')
+                        self.operate_log_size_entry.delete(0, tk.END)
+                        return
+                    else:
+                        max_bytes = operate_log_size * 1024 * 1024
+                        self.operate_logger.add_hander(operate_log_file_path, max_bytes)
+                        logger.info(f'开启日志记录：{operate_log_file_path}')
+                        self.log_shower.insert(tk.END, f'开启操作日志记录{operate_log_file_path}\n')
 
-            pass
-
+            parent.destroy()
 
         tk.Button(frame, text='取消', font=_FONT_S, bg='silver',
-                  height=2, width=8).pack(side=tk.RIGHT, pady=4, padx=10)
+                  height=2, width=8, command=cancel).pack(side=tk.RIGHT, pady=4, padx=10)
         tk.Button(frame, text='确定', font=_FONT_S, bg='silver',
-                  height=2, width=8).pack(side=tk.RIGHT, pady=4, padx=10)
+                  height=2, width=8, command=confirm).pack(side=tk.RIGHT, pady=4, padx=10)
         return frame
 
     def main_top(self, parent):
@@ -544,9 +565,9 @@ class OneOsGui:
                                                            message='license文件中组件列中组件名和组件id需要用斜杠/分隔')
                             self.record_filepath.set('')
                             return
-                        self.log_shower.insert(tk.END, f'导入license文件，'
-                                                       f'共导入HID{len(set(self.hid_license_map.hids))}个, '
-                                                       f'license{self.hid_license_map.licenses_counts}个\n')
+                        self.__do_log_shower_insert(f'导入license文件，'
+                                                    f'共导入HID{len(set(self.hid_license_map.hids))}个, '
+                                                    f'license{self.hid_license_map.licenses_counts}个\n')
                         print('写license路径', self.hid_license_map)
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
@@ -576,6 +597,7 @@ class OneOsGui:
 
     def __main_text_left_1(self, parent):  # 日志打印Text
         self.log_shower = tk.Text(parent, width=50, height=15)
+        self.log_shower.insert(tk.END, '默认关闭操作日志\n')
         self.log_shower.tag_config('error', foreground='red')
         self.log_shower.tag_config('confirm', foreground='green')
         self.log_shower.tag_config('warn', foreground='blue')
@@ -585,7 +607,7 @@ class OneOsGui:
 
         def clean_log():
             self.log_shower.delete(1.0, tk.END)  # 清除text中文本
-            self.log_shower.insert(1.0, '清除日志...\n')
+            self.__do_log_shower_insert('清除日志...\n', start=1.0)
         b = tk.Button(parent, text='清除日志', font=_FONT_S, height=1, width=8,
                       bg='#918B8B', padx=1, pady=1, command=clean_log)
         return b
@@ -673,7 +695,7 @@ class OneOsGui:
         self.run_status.set('工作中')
         self.port_status_label.config(fg='green')
         self.run_status_label.config(fg='green')
-        self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接成功\n')
+        self.__do_log_shower_insert(f'串口{self.curr_port.get()}连接成功\n')
 
     def __turn_off(self):  # 断开串口连接时，更新属性
         self.if_connected.set(f'断开')
@@ -694,7 +716,7 @@ class OneOsGui:
                 self.__turn_on()
                 return True
             else:
-                self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}连接失败\n', 'warn')
+                self.__do_log_shower_insert(f'串口{self.curr_port.get()}连接失败\n', tag='warn')
                 return False
 
     def disconnect_to_board(self, if_print=True):
@@ -703,7 +725,7 @@ class OneOsGui:
         if self.conn.is_open:
             self.conn.close()
             if if_print:
-                self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}断开连接\n\n')
+                self.__do_log_shower_insert(f'串口{self.curr_port.get()}断开连接\n\n')
 
     def get_port_list(self, cb):
         """获取当前可用的串口列表"""
@@ -711,12 +733,12 @@ class OneOsGui:
             self.port_list = PyBoard.get_list()
             cb['value'] = self.port_list
             if self.port_list:
-                self.log_shower.insert('end', '检测到串口')
+                self.__do_log_shower_insert('检测到串口')
                 for port_ in self.port_list:
-                    self.log_shower.insert('end', f' {port_}')
+                    self.__do_log_shower_insert(f' {port_}')
                 self.log_shower.insert('end', '\n')
             else:
-                self.log_shower.insert('end', '未检测到串口\n')
+                self.__do_log_shower_insert('未检测到串口\n')
         return _get_port_list
 
     def do_hid_line(self):
@@ -725,7 +747,7 @@ class OneOsGui:
             print(f'wait_time: {self.wait_time}')
             if self.wait_time >= self.MAX_WAIT_TIME:
                 self.disconnect_to_board(if_print=False)
-                self.log_shower.insert(tk.END, '连接未操作时间过长，自动断开连接\n\n', 'warn')
+                self.__do_log_shower_insert('连接未操作时间过长，自动断开连接\n\n', tag='warn')
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开  始')
                 self.start_btn.config(fg='green')
@@ -750,20 +772,20 @@ class OneOsGui:
             hid_response = serial_obj.get_HID()
         except SerialException as e:
             logger.warning('串口访问异常', e)
-            self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
+            self.__do_log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
             self.disconnect_to_board()
             return
         except Exception as e:
             logger.warning('串口访问异常', e)
-            self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
+            self.__do_log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
             self.disconnect_to_board()
             return
         else:
             if hid_response is None:
-                self.log_shower.insert(tk.END, f'设备HID读取失败，稍后将重试或更换设备\n', 'error')
+                self.__do_log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
                 self.disconnect_to_board()
                 return
-        self.log_shower.insert(tk.END, f'设备HID读取成功\n')
+        self.__do_log_shower_insert(f'设备HID读取成功\n')
         try:
             board_protocol = parse_protocol(hid_response)
         except Exception as e:
@@ -782,28 +804,28 @@ class OneOsGui:
                     self.new_failed_hids.append(hid_value)
                     self.__refresh_statistics_hid()
                     logger.exception(e)
-                    self.log_shower.insert(tk.END, f'设备{hid_value}HID存储失败\n', 'error')
+                    self.__do_log_shower_insert(f'设备{hid_value}HID存储失败\n', tag='error')
                     self.disconnect_to_board()
                 else:
                     self.record_hids.append(hid_value)
                     self.new_success_hids.append(hid_value)
                     self.new_add_hids.append(hid_value)
                     self.__refresh_statistics_hid()
-                    self.log_shower.insert(tk.END, f'设备{hid_value}HID存储完成，请更换设备...\n', 'confirm')
+                    self.__do_log_shower_insert(f'设备{hid_value}HID存储完成，请更换设备...\n', tag='confirm')
                     self.disconnect_to_board()
         else:
             if hid_value not in self.new_success_hids:
                 self.new_success_hids.append(hid_value)
             self.__refresh_statistics_hid()
             self.wait_time += 1
-            self.log_shower.insert(tk.END, f'设备{hid_value}已完成，请更换设备...\n', 'warn')
+            self.__do_log_shower_insert(f'设备{hid_value}已完成，请更换设备...\n', tag='warn')
             self.disconnect_to_board()
             time.sleep(3)
 
     def do_license_line(self):
         """开始写license流程"""
         logger.info('write license start')
-        self.log_shower.insert(tk.END, '开始写license流程\n')
+        self.__do_log_shower_insert('开始写license流程\n')
         while self.if_keep_reading:
             print(f'wait time: {self.wait_time}')
             if self.wait_time >= self.MAX_WAIT_TIME:
@@ -826,7 +848,7 @@ class OneOsGui:
                     continue
                 else:
                     if hid_response is None:
-                        self.log_shower.insert(tk.END, f'获取设备HID失败\n', 'error')
+                        self.__do_log_shower_insert(f'获取设备HID失败\n', tag='error')
                         self.disconnect_to_board()
                         time.sleep(1)
                         continue
@@ -840,24 +862,24 @@ class OneOsGui:
                     continue
                 logger.info('parse hid success')
                 hid_value = board_protocol.payload_data.data
-                self.log_shower.insert(tk.END, f'获取设备HID成功，HID {hid_value}\n')
+                self.__do_log_shower_insert(f'获取设备HID成功，HID {hid_value}\n')
                 if hid_value not in self.activated_hids:
                     hid_licenses = self.hid_license_map.get_license(hid_value)
                     if not hid_licenses:  # 该hid没有获取到相应的license
                         logger.warning(f'{hid_value} 没有获取到license\n')
-                        self.log_shower.insert(tk.END, 'license写入失败: license文件中没有找到该hid\n')
+                        self.__do_log_shower_insert('license写入失败: license文件中没有找到该hid\n')
                         self.__refresh_statistics_license()
                         self.disconnect_to_board()
                         time.sleep(1)
                         continue
-                    self.log_shower.insert(tk.END, f'对设备{hid_value}，写入license\n')
+                    self.__do_log_shower_insert(f'对设备{hid_value}，写入license\n')
                     for component_id, license_ in hid_licenses.items():
                         try:
                             license_ = b64tostrhex(license_)
                         except Exception as e:
                             logger.error(f'license {license_}转码错误')
-                            self.log_shower.insert(tk.END, f'{component_id}写入license{license_[:20]}...失败，'
-                                                           f'license转码错误\n', 'warn')
+                            self.__do_log_shower_insert(f'{component_id}写入license{license_[:20]}...失败，'
+                                                        f'license转码错误\n', tag='warn')
                             self.failed_license.append(license_)
                             self.__refresh_statistics_license()
                             time.sleep(1)
@@ -866,23 +888,23 @@ class OneOsGui:
                                                   command=ProtocolCommand.license_put_request.value,
                                                   )
                         if not self.send_license(self.conn, protocol):
-                            self.log_shower.insert(tk.END, f'{component_id}写入license{license_[:20]}...失败\n', 'warn')
+                            self.__do_log_shower_insert(f'{component_id}写入license{license_[:20]}...失败\n', tag='warn')
                             self.failed_license.append(license_)
                             self.__refresh_statistics_license()
                             if_success = False
                         else:
-                            self.log_shower.insert(tk.END, f'{component_id}写入license{license_}成功\n', 'warn')
+                            self.__do_log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
                             self.success_license.append(license_)
                             self.__refresh_statistics_license()
                     if if_success:
-                        self.log_shower.insert(tk.END, f'设备{hid_value}写入license成功\n', 'confirm')
+                        self.__do_log_shower_insert(f'设备{hid_value}写入license成功\n', tag='confirm')
                         self.activated_hids.append(hid_value)
                         self.__refresh_statistics_license()
                     else:
-                        self.log_shower.insert(tk.END, f'设备{hid_value}写入license失败\n', 'error')
+                        self.__do_log_shower_insert(f'设备{hid_value}写入license失败\n', tag='error')
                 else:
                     self.wait_time += 1
-                    self.log_shower.insert(tk.END, f'设备{hid_value}已经写入过license，请更换设备...\n', 'warn')
+                    self.__do_log_shower_insert(f'设备{hid_value}已经写入过license，请更换设备...\n', tag='warn')
             self.disconnect_to_board()
             time.sleep(3)
 
@@ -892,22 +914,22 @@ class OneOsGui:
             serial_obj.send_license(protocol)
         except SerialException as e:
             logger.warning('串口无法访问')
-            self.log_shower.insert(tk.END, '串口无法通信\n')
+            self.__do_log_shower_insert('串口无法通信\n')
             return
         except Exception as e:
             logger.exception(e)
-            self.log_shower.insert(tk.END, '写入license失败\n')
+            self.__do_log_shower_insert('写入license失败\n')
             return
 
         try:
             resp = serial_obj.read_response()
         except SerialException as e:
             logger.warning('未获取到license写入结果')
-            self.log_shower.insert(tk.END, '未获取到license写入结果\n')
+            self.__do_log_shower_insert('未获取到license写入结果\n')
             return
         except Exception as e:
             logger.exception(e)
-            self.log_shower.insert(tk.END, '获取license写入结果失败\n')
+            self.__do_log_shower_insert('获取license写入结果失败\n')
             return
         logger.info(f'get response: {resp}')
         if resp is not None:
@@ -919,20 +941,20 @@ class OneOsGui:
             payload_data = board_protocol.payload_data
             if check_payload(payload_data, 'license_put_response'):
                 logger.info('license写入成功')
-                self.log_shower.insert(tk.END, 'license写入成功\n', 'confirm')
+                self.__do_log_shower_insert('license写入成功\n', tag='confirm')
                 return True
             else:
                 error_type = Error_Data_Map.get(payload_data.data)
                 if error_type is not None:
                     logger.info(f'license写入失败，指令{payload_data.command}，')
-                    self.log_shower.insert(tk.END, f'license写入错误, '
-                                                   f'指令{payload_data.command} 错误类型{error_type}\n')
+                    self.__do_log_shower_insert(f'license写入错误, '
+                                                f'指令{payload_data.command} 错误类型{error_type}\n')
                 else:
                     logger.info(f'license写入失败，指令{payload_data.command}，')
-                    self.log_shower.insert(tk.END, f'license写入错误, '
-                                                   f'指令{payload_data.command}数据{payload_data.data}\n')
+                    self.__do_log_shower_insert(f'license写入错误, '
+                                                f'指令{payload_data.command}数据{payload_data.data}\n')
         else:  # 没有正确获取到返回
-            self.log_shower.insert(tk.END, 'license写入失败\n', 'error')
+            self.__do_log_shower_insert('license写入失败\n', tag='error')
 
 
 if __name__ == '__main__':

@@ -39,4 +39,21 @@ class Logger:
         return self.logger
 
 
+class OperateLogger():
+
+    def __init__(self):
+        self.logger = logging.getLogger()
+
+    def add_hander(self, filename, max_bytes):
+        handler_ = RotatingFileHandler(filename=filename,
+                                       mode='a',
+                                       maxBytes=max_bytes,
+                                       backupCount=2,
+                                       encoding='utf-8')
+        formatter = logging.Formatter(FORMAT)
+        handler_.setFormatter(formatter)
+        self.logger.addHandler(handler_)
+        self.logger.setLevel(logging.INFO)
+
+
 logger = Logger()()
