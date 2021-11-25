@@ -259,7 +259,7 @@ class OneOsGui:
         tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
 
         port_config_items = {
-            '串口号': Port_Config_Item(name='port_cb_port_config', value=['COM1', 'COM2', 'COM19', 'COM21']),  # TODO 调用串口获取当前串口号
+            '串口号': Port_Config_Item(name='port_cb_port_config', value=self.port_list),  # TODO 调用串口获取当前串口号
             '波特率': Port_Config_Item(name='baudrate_cb_port_config', value=[115200, ]),
             '数据位': Port_Config_Item(name='data_digit_port_config', value=[8]),
             '校验位': Port_Config_Item(name='check_digit_port_config', value=['None',]),
@@ -275,6 +275,8 @@ class OneOsGui:
         tk.Label(frame, text=k_name).pack(side=tk.LEFT, padx=10)
         setattr(self, k_value.name, ttk.Combobox(frame, value=k_value.value, width=35, state='readonly'))
         cb = getattr(self, k_value.name)
+        if k_name == '串口号':
+            self.get_port_list(cb)()
         cb.current(0)
         cb.pack(side=tk.LEFT, padx=5)
         return frame
@@ -282,7 +284,8 @@ class OneOsGui:
     def __top_port_config_confirm(self, parent):  # 确定/取消按钮
 
         def confirm():
-            print(f'串口号:', self.port_cb_port_config.get())
+            self.curr_port.set(self.port_cb_port_config.get())
+            self.port_cb.set(self.curr_port.get())
             print(f'波特率:', self.baudrate_cb_port_config.get())
             print(f'数据位:', self.data_digit_port_config.get())
             print(f'校验位:', self.check_digit_port_config.get())
@@ -469,7 +472,7 @@ class OneOsGui:
 
     def __main_top_2_2(self, parent):
         self.port_cb = ttk.Combobox(parent, value=self.port_list, width=25)
-        self.port_cb.bind('<Button-1>', self.get_port_list)
+        self.port_cb.bind('<Button-1>', self.get_port_list(self.port_cb))
         return self.port_cb
 
     def __main_top_2_3(self, parent):
@@ -702,17 +705,19 @@ class OneOsGui:
             if if_print:
                 self.log_shower.insert(tk.END, f'串口{self.curr_port.get()}断开连接\n\n')
 
-    def get_port_list(self, *args):
+    def get_port_list(self, cb):
         """获取当前可用的串口列表"""
-        self.port_list = PyBoard.get_list()
-        self.port_cb['value'] = self.port_list
-        if self.port_list:
-            self.log_shower.insert('end', '检测到串口')
-            for port_ in self.port_list:
-                self.log_shower.insert('end', f' {port_}')
-            self.log_shower.insert('end', '\n')
-        else:
-            self.log_shower.insert('end', '未检测到串口\n')
+        def _get_port_list(*args):
+            self.port_list = PyBoard.get_list()
+            cb['value'] = self.port_list
+            if self.port_list:
+                self.log_shower.insert('end', '检测到串口')
+                for port_ in self.port_list:
+                    self.log_shower.insert('end', f' {port_}')
+                self.log_shower.insert('end', '\n')
+            else:
+                self.log_shower.insert('end', '未检测到串口\n')
+        return _get_port_list
 
     def do_hid_line(self):
         """开始读HID流程"""
