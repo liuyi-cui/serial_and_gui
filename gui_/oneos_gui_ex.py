@@ -10,7 +10,6 @@ from pathlib import Path
 from tkinter import ttk
 from tkinter import filedialog
 from serial.serialutil import SerialException
-from logging import handlers
 
 from dao import HID_License_Map, DaoException
 from log import logger, OperateLogger
@@ -18,12 +17,12 @@ from serial_.pyboard import PyBoard, PyBoardException
 from utils.convert_utils import b64tostrhex
 from utils.entities import BoardProtocol, PayloadData, ProtocolCommand, DataError, Error_Data_Map
 from utils.file_utils import check_file_suffix, record_HID_activated, read_HID
-from utils.retry import retry
 from utils.protocol_utils import parse_protocol, build_protocol, check_payload
 
 # 字体
 _FONT_S = ('微软雅黑', 8)  # 小号字体
 _FONT_L = ('微软雅黑', 12)  # 大号字体字体
+_FONT_B = ('宋体', 10, 'bold')
 # 标题
 TITLE_MAIN = 'OneOS License管理工具 -1.0.0'
 TITLE_PORT_CONFIG = '串口配置'
@@ -610,9 +609,9 @@ class OneOsGui:
     def __main_text_left_1(self, parent):  # 日志打印Text
         self.log_shower = tk.Text(parent, width=50, height=15)
         self.log_shower.insert(tk.END, '默认关闭操作日志\n')
-        self.log_shower.tag_config('error', foreground='red')
-        self.log_shower.tag_config('confirm', foreground='green')
-        self.log_shower.tag_config('warn', foreground='blue')
+        self.log_shower.tag_config('error', foreground='red', font=_FONT_B)
+        self.log_shower.tag_config('confirm', foreground='green', font=_FONT_B)
+        self.log_shower.tag_config('warn', foreground='blue', font=_FONT_B)
         return self.log_shower
 
     def __main_text_left_2(self, parent):  # 清除日志按钮
