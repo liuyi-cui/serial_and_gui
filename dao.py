@@ -14,57 +14,16 @@ class DaoException(Exception):
     pass
 
 
-class HIDDao:
-    """
-    存储HID
-    """
-    __instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if cls.__instance:
-            return cls.__instance
-        return super().__new__(cls)
-
-    def __init__(self):
-        if not HIDDao.__instance:
-            self.hid_list = []
-            HIDDao.__instance = self
-
-    def store(self) -> None:
-        """
-        存储hid到本地
-        Returns:
-            None
-        """
-        if self.hid_list:
-            store_HID(self.hid_list)
-
-    def add(self, hid):
-        """添加hid"""
-        self.hid_list.append(hid)
-
-    def clear(self):
-        """清空hid"""
-        self.hid_list = []
-
-
 class HID_License_Map:
 
     __instance = None
 
-    def __new__(cls, *args, **kwargs):
-        if cls.__instance:
-            return cls.__instance
-        return super().__new__(cls)
-
     def __init__(self, file_path: str):
-        if not HID_License_Map.__instance:
-            self.file_path = file_path  # 映射文件地址
-            self.hids = []
-            self.licenses_counts = 0
-            self.hid_license_map = dict()
-            self._load()
-            HID_License_Map.__instance = self
+        self.file_path = file_path  # 映射文件地址
+        self.hids = []
+        self.licenses_counts = 0
+        self.hid_license_map = dict()
+        self._load()
 
     def _load(self):
         """
@@ -77,7 +36,10 @@ class HID_License_Map:
         """
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f'{self.file_path} not exists')
-        df = pd.read_excel(self.file_path, sheet_name=LICENSE_FILE_SHEET_NAME, dtype=str)
+        try:
+            df = pd.read_excel(self.file_path, sheet_name=LICENSE_FILE_SHEET_NAME, dtype=str)
+        except Exception as e:
+            raise DaoException(str(e))
         self.hids = df[HID_COLUMN_NAME].tolist()
         components_columns = self._get_components_columns(df)
         self.licenses_counts = self._calc_license_counts(df, components_columns)
@@ -88,7 +50,8 @@ class HID_License_Map:
                     raise DaoException('license文件中组件列中组件名和组件id需要用斜杠/分隔')
                 component_id = component_name.split('/')[-1]
                 license = df[df[HID_COLUMN_NAME] == hid].iloc[0,][component_name]
-                component_license_map.update({component_id: license})
+                if pd.notnull(license):
+                    component_license_map.update({component_id: license})
             self.hid_license_map.update({hid: component_license_map})
 
     def _get_components_columns(self, df):
