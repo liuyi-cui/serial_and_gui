@@ -615,18 +615,27 @@ class OneOsGui:
     def __main_text_right(self, parent):  # 操作统计Text控件，清除统计按钮
         frame_right = tk.Frame(parent)
         self.__main_text_right_1(frame_right).pack(expand=True, fill=tk.BOTH)  # 日志打印text控件
-        self.__main_text_right_2(frame_right).pack(side=tk.RIGHT)
+        self.__main_text_right_2(frame_right).pack(expand=True, fill=tk.X)
+        self.__main_text_right_3(frame_right).pack(side=tk.RIGHT)
 
         return frame_right
 
     def __main_text_right_1(self, parent):  # 日志打印Text
-        self.operate_shower = tk.Text(parent, width=30, height=15, font=_FONT_L)
+        self.operate_shower = tk.Text(parent, width=30, height=10, font=_FONT_L)
         self.operate_shower.tag_config('head', lmargin1=25, rmargin=10, spacing1=15, spacing3=15)
         self.operate_shower.tag_config('content', lmargin1=25, rmargin=10, spacing1=5)
         self.operate_shower.tag_config('tail', lmargin1=25, rmargin=10, spacing1=20)
         return self.operate_shower
 
-    def __main_text_right_2(self, parent):  # 清除日志按钮
+    def __main_text_right_2(self, parent):
+        self.statistic_shower = tk.Text(parent, width=10, height=2, font=('微软雅黑', 24))
+        self.statistic_shower.tag_config('success', foreground='green', justify='center', spacing1=20)
+        self.statistic_shower.tag_config('confirm', foreground='seagreen', justify='center', spacing1=20)
+        self.statistic_shower.tag_config('fail', foreground='red', justify='center', spacing1=20)
+        self.statistic_shower.tag_config('stop', foreground='blue', justify='center', spacing1=20)
+        return self.statistic_shower
+
+    def __main_text_right_3(self, parent):  # 清除日志按钮
 
         def clean_log():
             self.operate_shower.delete(1.0, tk.END)  # 清除text中文本
