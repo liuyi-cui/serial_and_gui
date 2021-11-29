@@ -14,6 +14,7 @@ from serial.serialutil import SerialException
 from dao import HID_License_Map, DaoException
 from log import logger, OperateLogger
 from serial_.pyboard import PyBoard, PyBoardException
+from setting import TITLE_MAIN
 from utils.convert_utils import b64tostrhex
 from utils.entities import BoardProtocol, PayloadData, ProtocolCommand, DataError, Error_Data_Map
 from utils.file_utils import check_file_suffix, record_HID_activated, read_HID
@@ -24,7 +25,6 @@ _FONT_S = ('微软雅黑', 8)  # 小号字体
 _FONT_L = ('微软雅黑', 12)  # 大号字体字体
 _FONT_B = ('宋体', 10, 'bold')
 # 标题
-TITLE_MAIN = 'OneOS License管理工具 -1.0.0'
 TITLE_PORT_CONFIG = '串口配置'
 TITLE_LOG_CONFIG = '日志配置'
 # 窗体大小
@@ -402,7 +402,7 @@ class OneOsGui:
         return l
 
     def __top_log_config_3_2(self, parent):
-        self.operate_log_size_entry = tk.Entry(parent, show=None)  # 明文形式显示 TODO 确定按钮时需要接收输入框中值，并且要做纯数字的判断
+        self.operate_log_size_entry = tk.Entry(parent, show=None)  # 明文形式显示
         return self.operate_log_size_entry
 
     def __top_log_config_3_3(self, parent):

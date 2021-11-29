@@ -2,8 +2,6 @@
 import os
 import pandas as pd
 
-from utils.file_utils import store_HID
-
 
 HID_COLUMN_NAME = '设备HID'
 TIPS_COLUMNS_NAME = '提示'

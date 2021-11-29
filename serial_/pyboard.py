@@ -20,10 +20,10 @@ class PyBoard:
     @retry(logger)
     def __init__(self, port: str, baudrate: int):
         self.con_serial = ConSerial()
-        print(f'连接到开发板: {port} {baudrate}')
+        logger.info(f'连接到开发板: {port} {baudrate}')
         self.open(port, baudrate)
-        print(f'连接到开发板完成')
-        self.is_open = False  # TODO 考虑使用场景
+        logger.info(f'连接到开发板完成')
+        self.is_open = False
         self.__update_state()
 
     def __update_state(self):
@@ -56,10 +56,10 @@ class PyBoard:
             if size:
                 ret = self.con_serial.read(size)  # TODO 分段读取
             else:
-                print(f'第{times}次没有获取到数据')
                 logger.warning(f'第{times}次没有获取到数据')
                 times += 1
                 time.sleep(1)
+        logger.info(f'get response {ret}')
         if ret is not None:
             return bytestostrhex(ret)
         return ret
@@ -75,9 +75,10 @@ class PyBoard:
 
         """
         if license:
-            # if len(license) % 2 != 0:
-            #     raise PyBoardException('Odd-length string')
-            license_byte = strhextobytes(license)  # TODO 奇偶判断
+            if len(license) % 2 != 0:
+                logger.error('Odd-length string')
+                raise PyBoardException('Odd-length string')
+            license_byte = strhextobytes(license)
             self.con_serial.write(license_byte)  # 分批次写入
 
     @retry(logger)
@@ -106,10 +107,10 @@ class PyBoard:
             if size:
                 ret = self.con_serial.read(size)  # TODO 分段读取
             else:
-                print(f'第{times}次没有获取到数据')
                 logger.warning(f'第{times}次没有获取到数据')
                 times += 1
                 time.sleep(1)
+        logger.info(f'get response {ret}')
         if ret is not None:
             return bytestostrhex(ret)
         return ret
