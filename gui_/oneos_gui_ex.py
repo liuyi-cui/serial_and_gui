@@ -459,6 +459,9 @@ class OneOsGui:
         def confirm():  # 确定时，需要获取是否需要存储日志，日志存储路径和日志的大小
             if self.if_record_log:
                 operate_log_file_path = self.log_filepath.get()
+                if not operate_log_file_path:
+                    tkinter.messagebox.showwarning(title='Warning', message='请选择存储日志文件')
+                    return
                 operate_log_size = self.operate_log_size_entry.get()
                 if operate_log_size:
                     try:
@@ -468,7 +471,11 @@ class OneOsGui:
                         self.operate_log_size_entry.delete(0, tk.END)
                         return
                     else:
-                        max_bytes = operate_log_size * 1024 * 1024
+                        if operate_log_size <= 0:
+                            tkinter.messagebox.showwarning(title='Warning', message='日志大小需要为正数')
+                            self.operate_log_size_entry.delete(0, tk.END)
+                            return
+                        max_bytes = (min(operate_log_size, 1024/2)) * 1024 * 1024  # 日志最大容量为1024
                         self.operate_logger.add_hander(operate_log_file_path, max_bytes)
                         logger.info(f'开启日志记录：{operate_log_file_path}')
                         self.log_shower.insert(tk.END, f'开启操作日志记录{operate_log_file_path}\n')

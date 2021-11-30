@@ -48,7 +48,7 @@ class OperateLogger:
         handler_ = RotatingFileHandler(filename=filename,
                                        mode='a',
                                        maxBytes=max_bytes,
-                                       backupCount=2,
+                                       backupCount=1,
                                        encoding='utf-8')
         formatter = logging.Formatter(FORMAT)
         handler_.setFormatter(formatter)
