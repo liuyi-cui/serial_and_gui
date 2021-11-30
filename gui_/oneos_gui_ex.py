@@ -127,6 +127,7 @@ class OneOsGui:
         self.start_btn = tk.Button()  # main_top中的开始按钮
         self.port_status_label = tk.Label()  # main_bottom中的串口状态label
         self.run_status_label = tk.Label()  # main_bottom中的运行状态label
+        self.other_com_entry = None
 
     def __reset_wait_time(self):
         self.wait_time = 0
@@ -232,6 +233,25 @@ class OneOsGui:
 
     def change_status_to_license(self):
         self.refresh_var(StatusEnum.License.value)
+
+    def ori_other_com_entry(self, parent):
+        self.other_com_entry = tk.Entry(parent)
+        return self.other_com_entry
+
+    def ori_other_com_handler(self, parent, port_cb):
+
+        def handler(event):
+            value = port_cb.get()
+            if self.other_com_entry is None:
+                self.ori_other_com_entry(parent)
+            if value == 'other com':
+                print('pack')
+                self.other_com_entry.pack(side=tk.RIGHT, padx=10, pady=5)
+            else:
+                print('destory')
+                self.other_com_entry.destroy()
+                self.other_com_entry = None
+        return handler
 
     def body(self):  # 绘制主题
         self.window_.config(menu=self.top(self.window_))  # 菜单栏
@@ -486,6 +506,13 @@ class OneOsGui:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='未选择HID记录文件/license存储文件')
                 else:
+                    if temp_port == 'other com':
+                        temp_port = self.other_com_entry.get()
+                    if temp_port not in PyBoard.get_list():
+                        tkinter.messagebox.showwarning(title='WARNNING',
+                                                       message='无法连接的串口号，请确认串口号合法并且该串口可连接')
+                        return
+                    self.port_cb.set(temp_port)
                     self.__disable_widgets('开始')
                     self.start_btn_desc.set('停  止')
                     self.start_btn.config(fg='red')
@@ -530,22 +557,31 @@ class OneOsGui:
         return l
 
     def __main_top_2_2(self, parent):
+
         self.port_cb = ttk.Combobox(parent, value=self.port_list, width=25)
         self.port_cb.bind('<Button-1>', self.get_port_list(self.port_cb))
+        self.port_cb.bind('<<ComboboxSelected>>', self.ori_other_com_handler(parent, self.port_cb))
         return self.port_cb
 
     def __main_top_2_3(self, parent):
 
-        def test_connect():  # 连接测试
+        def _test_connect():  # 连接测试
             if self.port_test_desc.get() == '开始测试':
                 temp_port = self.port_cb.get()
                 if temp_port:  # 当前选择了串口号
+                    if temp_port == 'other com':
+                        temp_port = self.other_com_entry.get()
+                    if temp_port not in PyBoard.get_list():
+                        tkinter.messagebox.showwarning(title='WARNNING',
+                                                       message='无法连接的串口号，请确认串口号合法并且该串口可连接')
+                        return
                     self.curr_port.set(temp_port)
+                    self.port_cb.set(temp_port)
                     try:
                         self.if_keep_reading = True
                         self.port_test_desc.set('停止测试')
                         self.__disable_widgets('开始测试')
-                        self.connect_to_board()  # TODO 连接开发板
+                        self.connect_to_board()
                     except Exception as e:
                         print(e)
                         tkinter.messagebox.showerror(title='ERROR', message=str(e))
@@ -565,7 +601,7 @@ class OneOsGui:
         self.port_test_desc.set('开始测试')
         self.port_test_button = tk.Button(parent, textvariable=self.port_test_desc, font=_FONT_S,
                       width=10, bg='#918B8B',
-                      command=test_connect)
+                      command=_test_connect)
         return self.port_test_button
 
     def __main_top_3(self, parent):
@@ -776,10 +812,14 @@ class OneOsGui:
         """获取当前可用的串口列表"""
         def _get_port_list(*args):
             self.port_list = PyBoard.get_list()
+            if cb is self.port_cb:
+                self.port_list.append('other com')
             cb['value'] = self.port_list
-            if self.port_list:
+            if self.port_list and self.port_list != ['other com']:
                 self.__do_log_shower_insert('检测到串口')
                 for port_ in self.port_list:
+                    if port_ == 'other com':
+                        continue
                     self.__do_log_shower_insert(f' {port_}')
                 self.log_shower.insert('end', '\n')
             else:
