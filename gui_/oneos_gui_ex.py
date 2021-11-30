@@ -107,6 +107,7 @@ class OneOsGui:
         self.success_license = []  # 成功激活的license
         self.failed_license = []  # 激活失败的license
 
+        self.main_menu_bar = tk.Menu()  # 标题栏菜单
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
         self.operate_log_size_entry = tk.Entry()  # 菜单栏日志配置弹窗地日志大小控件
@@ -120,6 +121,7 @@ class OneOsGui:
         self.log_shower = tk.Text()  # main_text左边的操作关键信息打印控件
         self.operate_shower = tk.Text()  # main_text右边的操作统计信息打印控件
         self.port_test_desc = tk.StringVar()  # main_top开始测试按钮的显示文字(开始测试/停止测试)
+        self.port_test_button = tk.Button()  # main_top的开始测试按钮
         self.start_btn_desc = tk.StringVar()  # main_top开始按钮的文字信息
         self.start_btn_desc.set('开  始')
         self.start_btn = tk.Button()  # main_top中的开始按钮
@@ -206,6 +208,25 @@ class OneOsGui:
             self.log_shower.insert(start, content, tag)
             self.operate_logger.logger.info(f'{tag}-{content.strip()}')
 
+    def __disable_widgets(self, button_name):
+        """当点击连接测试，开始按钮时，其余按钮禁止点击"""
+        if button_name == '开始测试':
+            self.start_btn.config(state=tk.DISABLED)  # 禁用开始按钮
+        elif button_name == '开始':
+            self.port_test_button.config(state=tk.DISABLED)  # 禁用连接测试按钮
+
+        self.main_menu_bar.entryconfig('工位选择', state=tk.DISABLED)  # 禁用菜单栏工位选择
+        self.main_menu_bar.entryconfig('配置', state=tk.DISABLED)  # 禁用菜单栏配置
+
+    def __able_widgets(self, button_name):
+        """当点击停止测试，停止按钮时，其余按钮恢复点击"""
+        if button_name == '开始测试':
+            self.start_btn.config(state=tk.NORMAL)  # 启用开始按钮
+        elif button_name == '开始':
+            self.port_test_button.config(state=tk.NORMAL)  # 启用连接测试按钮
+        self.main_menu_bar.entryconfig('工位选择', state=tk.NORMAL)  # 启用菜单栏工位选择
+        self.main_menu_bar.entryconfig('配置', state=tk.NORMAL)  # 启用菜单栏配置
+
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
 
@@ -226,11 +247,11 @@ class OneOsGui:
 
     def top(self, parent):
 
-        menu_bar = tk.Menu(parent)  # 创建一个菜单栏
-        self.__top_1(menu_bar)
-        self.__top_2(menu_bar)
+        self.main_menu_bar = tk.Menu(parent)  # 创建一个菜单栏
+        self.__top_1(self.main_menu_bar)
+        self.__top_2(self.main_menu_bar)
 
-        return menu_bar
+        return self.main_menu_bar
 
     def __top_1(self, parent):  # 工位选择菜单栏
 
@@ -457,7 +478,15 @@ class OneOsGui:
             if self.start_btn_desc.get() == '开  始':
                 self.__reset_wait_time()
                 temp_port = self.port_cb.get()
-                if temp_port:
+                file_path = self.record_filepath.get()
+                if not temp_port:
+                    tkinter.messagebox.showwarning(title='Warning',
+                                                   message='未选中串口号')
+                elif not file_path:
+                    tkinter.messagebox.showwarning(title='Warning',
+                                                   message='未选择HID记录文件/license存储文件')
+                else:
+                    self.__disable_widgets('开始')
                     self.start_btn_desc.set('停  止')
                     self.start_btn.config(fg='red')
                     try:
@@ -476,10 +505,8 @@ class OneOsGui:
                         self.start_btn_desc.set('开  始')
                         self.start_btn.config(fg='green')
                         self.__turn_off()
-                else:
-                    tkinter.messagebox.showwarning(title='Warning',
-                                                   message='未选中串口号')
             elif self.start_btn_desc.get() == '停  止':
+                self.__able_widgets('开始')
                 self.__reset_wait_time()
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开  始')
@@ -516,14 +543,12 @@ class OneOsGui:
                     self.curr_port.set(temp_port)
                     try:
                         self.if_keep_reading = True
-                        self.port_test_desc.set('停止测试')  # TODO 点击开始测试按钮后，菜单栏的选项应该也关闭
-                        self.start_btn.config(state=tk.DISABLED)
+                        self.port_test_desc.set('停止测试')
+                        self.__disable_widgets('开始测试')
                         self.connect_to_board()  # TODO 连接开发板
                     except Exception as e:
                         print(e)
                         tkinter.messagebox.showerror(title='ERROR', message=str(e))
-                    print(f'更新串口号：{temp_port}')
-                    self.__turn_on()
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='未选中串口号')
@@ -532,16 +557,16 @@ class OneOsGui:
                     self.disconnect_to_board()
                 self.if_keep_reading = False
                 self.port_test_desc.set('开始测试')
-                self.start_btn.config(state=tk.NORMAL)
+                self.__able_widgets('开始测试')
                 self.__turn_off()
             else:
                 print(f'unexcept dest: {self.port_test_desc.get()}')
 
         self.port_test_desc.set('开始测试')
-        b = tk.Button(parent, textvariable=self.port_test_desc, font=_FONT_S,
+        self.port_test_button = tk.Button(parent, textvariable=self.port_test_desc, font=_FONT_S,
                       width=10, bg='#918B8B',
                       command=test_connect)
-        return b
+        return self.port_test_button
 
     def __main_top_3(self, parent):
         frame = tk.Frame(parent)

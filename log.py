@@ -39,7 +39,7 @@ class Logger:
         return self.logger
 
 
-class OperateLogger():
+class OperateLogger:
 
     def __init__(self):
         self.logger = logging.getLogger()
