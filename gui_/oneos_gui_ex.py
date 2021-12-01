@@ -1055,7 +1055,7 @@ class OneOsGui:
             time.sleep(3)
 
     def send_license(self, serial_obj, protocol):
-        logger.info('send license start')
+        logger.info(f'send license start：{protocol}')
         try:
             serial_obj.send_license(protocol)
         except SerialException as e:
