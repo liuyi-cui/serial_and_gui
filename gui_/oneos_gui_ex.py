@@ -588,7 +588,7 @@ class OneOsGui:
                         self.if_keep_reading = True
                         self.port_test_desc.set('停止测试')
                         self.__disable_widgets('开始测试')
-                        self.connect_to_board()
+                        self.connect_to_board(type_='test')
                     except Exception as e:
                         print(e)
                         tkinter.messagebox.showerror(title='ERROR', message=str(e))
@@ -778,11 +778,12 @@ class OneOsGui:
         self.window_.mainloop()
         logger.info('----------------------Process Start-----------------------')
 
-    def __turn_on(self):  # 连接上串口时，更新属性
+    def __turn_on(self, type_='start'):  # 连接上串口时，更新属性
         self.if_connected.set(f'{self.curr_port.get()}已连接')
-        self.run_status.set('工作中')
+        if type_ == 'start':
+            self.run_status.set('工作中')
+            self.run_status_label.config(fg='green')
         self.port_status_label.config(fg='green')
-        self.run_status_label.config(fg='green')
         self.__do_log_shower_insert(f'串口{self.curr_port.get()}连接成功\n')
 
     def __turn_off(self):  # 断开串口连接时，更新属性
@@ -795,13 +796,13 @@ class OneOsGui:
         self.new_failed_hids = []
 
     # 以上为界面代码，以下为逻辑代码
-    def connect_to_board(self):
+    def connect_to_board(self, type_='start'):
         """连接串口"""
         logger.info(f'连接串口 {self.curr_port.get()}')
         if self.curr_port.get():
             self.conn = PyBoard(self.curr_port.get(), self.curr_baudrate)
             if self.conn.is_open:  # 已连接
-                self.__turn_on()
+                self.__turn_on(type_=type_)
                 return True
             else:
                 self.__do_log_shower_insert(f'串口{self.curr_port.get()}连接失败\n', tag='warn')
