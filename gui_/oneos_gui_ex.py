@@ -5,6 +5,7 @@ import time
 import tkinter as tk
 import tkinter.messagebox
 from collections import namedtuple
+from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from tkinter import ttk
@@ -64,7 +65,8 @@ class StatusEnumException(Exception):
 
 class OneOsGui:
 
-    MAX_WAIT_TIME = 3
+    MAX_WAIT_TIME = 5  # 成功后不更换设备，重复该次数后，停止读HID/写license
+    MAX_INTERVAL_SECOND = timedelta(seconds=30)  # 持续失败的最大间隔时间
 
     def __init__(self):
         self.window_ = tk.Tk()
@@ -78,6 +80,7 @@ class OneOsGui:
         self.window_.pack_propagate(True)
         self.conn = None  # 串口连接对象
         self.wait_time = 0  # 等待时间。
+        self.run_start_time = datetime.now()  # 启动开始时间
 
     def init_var(self):
         self.if_record_log = False  # 日志配置弹窗复选框，是否存储日志
@@ -200,6 +203,10 @@ class OneOsGui:
             self.statistic_shower.insert(1.0, '失 败', 'fail')
         elif status == 'stop':
             self.statistic_shower.insert(1.0, '停 止', 'stop')
+
+    def __refresh_run_start_time(self):  # 重置开始时间
+        self.run_start_time = datetime.now()
+        logger.info(f'重置开始时间： {self.run_start_time}')
 
     def __do_log_shower_insert(self, content, start=tk.END, tag=None):
         if tag is None:
@@ -519,6 +526,7 @@ class OneOsGui:
                         tkinter.messagebox.showwarning(title='WARNNING',
                                                        message='无法连接的串口号，请确认串口号合法并且该串口可连接')
                         return
+                    self.__refresh_run_start_time()
                     self.port_cb.set(temp_port)
                     self.__disable_widgets('开始')
                     self.start_btn_desc.set('停  止')
@@ -837,10 +845,21 @@ class OneOsGui:
     def do_hid_line(self):
         """开始读HID流程"""
         while self.if_keep_reading:
-            print(f'wait_time: {self.wait_time}')
             if self.wait_time >= self.MAX_WAIT_TIME:
                 self.disconnect_to_board(if_print=False)
                 self.__do_log_shower_insert('连接未操作时间过长，自动断开连接\n\n', tag='warn')
+                self.__able_widgets('开始')
+                self.__refresh_statistic_log_shower('stop')
+                self.if_keep_reading = False
+                self.start_btn_desc.set('开  始')
+                self.start_btn.config(fg='green')
+                self.__turn_off()
+                return
+
+            if (datetime.now() - self.run_start_time) > self.MAX_INTERVAL_SECOND:
+                self.disconnect_to_board(if_print=False)
+                self.__do_log_shower_insert('持续失败时间超时，自动断开连接\n\n', tag='warn')
+                self.__able_widgets('开始')
                 self.__refresh_statistic_log_shower('stop')
                 self.if_keep_reading = False
                 self.start_btn_desc.set('开  始')
@@ -909,6 +928,7 @@ class OneOsGui:
                     self.__refresh_statistic_log_shower('fail')
                     self.disconnect_to_board()
                 else:
+                    self.__refresh_run_start_time()
                     self.record_hids.append(hid_value)
                     self.new_success_hids.append(hid_value)
                     self.new_add_hids.append(hid_value)
@@ -933,13 +953,25 @@ class OneOsGui:
         self.__do_log_shower_insert('开始写license流程\n')
         self.__refresh_statistic_log_shower('reset')
         while self.if_keep_reading:
-            print(f'wait time: {self.wait_time}')
             if self.wait_time >= self.MAX_WAIT_TIME:
+                self.__do_log_shower_insert('连接未操作时间过长，自动断开连接\n\n', tag='warn')
                 self.disconnect_to_board()
                 self.if_keep_reading = False
                 self.__refresh_statistic_log_shower('stop')
                 self.start_btn_desc.set('开  始')
                 self.start_btn.config(fg='green')
+                self.__able_widgets('开始')
+                self.__turn_off()
+                return
+
+            if (datetime.now() - self.run_start_time) > self.MAX_INTERVAL_SECOND:
+                self.disconnect_to_board(if_print=False)
+                self.__do_log_shower_insert('持续失败时间超时，自动断开连接\n\n', tag='warn')
+                self.__refresh_statistic_log_shower('stop')
+                self.if_keep_reading = False
+                self.start_btn_desc.set('开  始')
+                self.start_btn.config(fg='green')
+                self.__able_widgets('开始')
                 self.__turn_off()
                 return
 
@@ -1007,6 +1039,7 @@ class OneOsGui:
                             self.success_license.append(license_)
                             self.__refresh_statistics_license()
                     if if_success:
+                        self.__refresh_run_start_time()
                         self.__do_log_shower_insert(f'设备{hid_value}写入license成功\n', tag='confirm')
                         self.__refresh_statistic_log_shower('success')
                         self.activated_hids.append(hid_value)
