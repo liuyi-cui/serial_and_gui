@@ -5,30 +5,19 @@ from pathlib import Path
 from log import logger
 
 
-HID_COLUMN_NAME = '设备HID'
-
-
-def store_HID(hids: list, file_path: Path):
-    """存储批量HID到本地"""
-
-    hids_df = pd.DataFrame(columns=[HID_COLUMN_NAME], data=hids)
-
-    if file_path.exists():
-        df_ed = pd.read_excel(file_path, sheet_name='Sheet1')
-        hids_df = df_ed.append(hids_df)
-    with pd.ExcelWriter(file_path, mode='w', engine='openpyxl') as writer:
-        hids_df.to_excel(writer, index=False, sheet_name='Sheet1')
+HID_COLUMN_NAME = ['设备HID', '备注：（分行录入，不超过1W条）']
+# SHEET_NAME = '设备识别码（HID）码'
 
 
 def record_HID_activated(hid: str, file_path: Path) -> None:  # TODO
     """存储HID到指定本地文件"""
     logger.info(f'记录hid{hid}到{file_path}')
-    df = pd.DataFrame({HID_COLUMN_NAME: hid}, index=[0])
+    df = pd.DataFrame({HID_COLUMN_NAME[0]: hid, HID_COLUMN_NAME[1]: None}, index=[0])
     if file_path.exists():
-        df_ed = pd.read_excel(file_path, sheet_name='Sheet1')
+        df_ed = pd.read_excel(file_path)
         df = df_ed.append(df)
     with pd.ExcelWriter(file_path, mode='w', engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Sheet1')
+        df.to_excel(writer, index=False)
 
 
 def read_HID(file_path: str) -> list:
@@ -40,9 +29,9 @@ def read_HID(file_path: str) -> list:
     Returns:
 
     """
-    df_ed = pd.read_excel(file_path, sheet_name='Sheet1')
-    if HID_COLUMN_NAME in df_ed.columns:
-        hids = df_ed[HID_COLUMN_NAME].values.tolist()
+    df_ed = pd.read_excel(file_path)
+    if HID_COLUMN_NAME[0] in df_ed.columns:
+        hids = df_ed[HID_COLUMN_NAME[0]].values.tolist()
     else:
         hids = []
     return hids
