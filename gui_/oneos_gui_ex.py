@@ -148,7 +148,7 @@ class OneOsGui:
 
         """
         logger.info(f'refresh status to {status}')
-        self.curr_port.set('')
+        # self.curr_port.set('')  # 切换工位时，保留串口选择
         self.if_connected.set('断开')
         self.run_status.set('停  止')
         self.port_test_desc.set('开始测试')
@@ -270,6 +270,7 @@ class OneOsGui:
                 print('pack')
                 self.other_com_entry.pack(side=tk.RIGHT, padx=10, pady=5)
             else:
+                self.curr_port.set(value)
                 print('destory')
                 self.other_com_entry.destroy()
                 self.other_com_entry = None
@@ -362,7 +363,12 @@ class OneOsGui:
         cb = getattr(self, k_value.name)
         if k_name == '串口号':
             self.get_port_list(cb)()
-        cb.current(0)
+            if self.curr_port.get() in PyBoard.get_list():
+                cb.current(PyBoard.get_list().index(self.curr_port.get()))
+            else:
+                cb.current(0)
+        else:
+            cb.current(0)
         cb.pack(side=tk.LEFT, padx=5)
         return frame
 
