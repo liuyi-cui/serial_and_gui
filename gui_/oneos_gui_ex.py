@@ -84,6 +84,8 @@ class OneOsGui:
 
     def init_var(self):
         self.if_record_log = False  # 日志配置弹窗复选框，是否存储日志
+        self.if_record_log_var = tk.IntVar()
+        self.operate_log_size = tk.StringVar()  # 日志配置弹窗日志上限大小
         self.log_filepath = tk.StringVar()  # 日志存储路径
         self.operate_desc = tk.StringVar()  # 记录文件/license文件(main_top栏)
         self.work_type = tk.StringVar()  # 工位
@@ -398,17 +400,16 @@ class OneOsGui:
         frame = tk.Frame(parent)
 
         def refresh_if_record_status():
-            if if_record_log.get() == 0:
+            if self.if_record_log_var.get() == 0:
                 self.if_record_log = False
                 logger.info('关闭操作过程日志记录')
-            elif if_record_log.get() == 1:
+            elif self.if_record_log_var.get() == 1:
                 self.if_record_log = True
                 logger.info('开启操作过程日志记录')
             else:
-                logger.warning('未知状态的日志记录', if_record_log.get())
+                logger.warning('未知状态的日志记录', self.if_record_log_var.get())
 
-        if_record_log = tk.IntVar()
-        record_log_cb = tk.Checkbutton(frame, text='记录日志', variable=if_record_log,
+        record_log_cb = tk.Checkbutton(frame, text='记录日志', variable=self.if_record_log_var,
                                        onvalue=1, offvalue=0, command=refresh_if_record_status)
         record_log_cb.pack(side=tk.LEFT)
         return frame
@@ -428,7 +429,7 @@ class OneOsGui:
     def __top_log_config_2_2(self, parent):
 
         def path_call_back():
-            file_path = filedialog.asksaveasfilename(initialfile=f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
+            file_path = filedialog.asksaveasfilename(initialfile=f"{datetime.now().strftime('%Y%m%d%H%M%S')}.log")
             if file_path != '':
                 self.log_filepath.set(file_path)
 
@@ -450,7 +451,7 @@ class OneOsGui:
         return l
 
     def __top_log_config_3_2(self, parent):
-        self.operate_log_size_entry = tk.Entry(parent, show=None)  # 明文形式显示
+        self.operate_log_size_entry = tk.Entry(parent, textvariable=self.operate_log_size, show=None)  # 明文形式显示
         return self.operate_log_size_entry
 
     def __top_log_config_3_3(self, parent):
@@ -482,6 +483,7 @@ class OneOsGui:
                             tkinter.messagebox.showwarning(title='Warning', message='日志大小需要为正数')
                             self.operate_log_size_entry.delete(0, tk.END)
                             return
+                        self.operate_log_size.set(operate_log_size)
                         max_bytes = (min(operate_log_size, 1024/2)) * 1024 * 1024  # 日志最大容量为1024
                         self.operate_logger.add_hander(operate_log_file_path, max_bytes)
                         logger.info(f'开启日志记录：{operate_log_file_path}')

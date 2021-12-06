@@ -43,17 +43,23 @@ class OperateLogger:
 
     def __init__(self):
         self.logger = logging.getLogger()
+        self.handlers = []
 
     def add_hander(self, filename, max_bytes):
-        handler_ = RotatingFileHandler(filename=filename,
-                                       mode='a',
-                                       maxBytes=max_bytes,
-                                       backupCount=1,
-                                       encoding='utf-8')
-        formatter = logging.Formatter(FORMAT)
-        handler_.setFormatter(formatter)
-        self.logger.addHandler(handler_)
-        self.logger.setLevel(logging.INFO)
+        if len(self.handlers) == 0:
+            handler_ = RotatingFileHandler(filename=filename,
+                                           mode='a',
+                                           maxBytes=max_bytes,
+                                           backupCount=1,
+                                           encoding='utf-8')
+            formatter = logging.Formatter(FORMAT)
+            handler_.setFormatter(formatter)
+            self.logger.addHandler(handler_)
+            self.logger.setLevel(logging.INFO)
+            self.handlers.append(handler_)
+        else:
+            self.handlers[0].baseFilename = filename
+            self.handlers[0].maxBytes = max_bytes
 
 
 logger = Logger()()
