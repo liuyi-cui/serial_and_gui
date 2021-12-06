@@ -126,6 +126,7 @@ class OneOsGui:
         self.filepath_entry = tk.Entry()  # main_top的文件选择控件
         self.log_shower = tk.Text()  # main_text左边的操作关键信息打印控件
         self.operate_shower = tk.Text()  # main_text右边的操作统计信息打印控件
+        self.statistic_shower = tk.Text()  # main_text右边的操作结果打印控件
         self.port_test_desc = tk.StringVar()  # main_top开始测试按钮的显示文字(开始测试/停止测试)
         self.port_test_button = tk.Button()  # main_top的开始测试按钮
         self.start_btn_desc = tk.StringVar()  # main_top开始按钮的文字信息
@@ -155,6 +156,7 @@ class OneOsGui:
         self.filepath_entry.delete(0, tk.END)  # 清空记录文件输入框内容
         self.log_shower.delete(1.0, tk.END)
         self.operate_shower.delete(1.0, tk.END)
+        self.statistic_shower.delete(1.0, tk.END)
         if status == 'HID':
             self._refresh_var_hid()
         elif status == 'License':
