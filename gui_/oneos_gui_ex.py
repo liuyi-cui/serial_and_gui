@@ -115,6 +115,7 @@ class OneOsGui:
         self.main_menu_bar = tk.Menu()  # 标题栏菜单
         self.port_cb = ttk.Combobox()  # 串口下拉菜单
         self.log_path_entry = tk.Entry()  # 菜单栏日志配置弹窗的日志文件路径
+        self.log_path_entry_start_button = tk.Button()  # 菜单栏日志配置弹窗的打开按钮
         self.operate_log_size_entry = tk.Entry()  # 菜单栏日志配置弹窗地日志大小控件
         self.port_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的串口下拉菜单
         self.baudrate_cb_port_config = ttk.Combobox()  # 菜单栏串口配置弹窗的波特率下拉菜单
@@ -236,6 +237,18 @@ class OneOsGui:
             self.port_test_button.config(state=tk.NORMAL)  # 启用连接测试按钮
         self.main_menu_bar.entryconfig('工位选择', state=tk.NORMAL)  # 启用菜单栏工位选择
         self.main_menu_bar.entryconfig('配置', state=tk.NORMAL)  # 启用菜单栏配置
+
+    def __close_log_config(self):
+        """日志配置弹窗中，当关闭日志记录时，其余日志配置选项不可配置"""
+        self.log_path_entry.config(state=tk.DISABLED)
+        self.log_path_entry_start_button.config(state=tk.DISABLED)
+        self.operate_log_size_entry.config(state=tk.DISABLED)
+
+    def __open_log_config(self):
+        """日志配置弹窗中，当开启日志记录时，打开其余日志配置选项"""
+        self.log_path_entry.config(state=tk.NORMAL)
+        self.log_path_entry_start_button.config(state=tk.NORMAL)
+        self.operate_log_size_entry.config(state=tk.NORMAL)
 
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
@@ -403,9 +416,11 @@ class OneOsGui:
             if self.if_record_log_var.get() == 0:
                 self.if_record_log = False
                 logger.info('关闭操作过程日志记录')
+                self.__close_log_config()  # 关闭日志配置选项
             elif self.if_record_log_var.get() == 1:
                 self.if_record_log = True
                 logger.info('开启操作过程日志记录')
+                self.__open_log_config()  # 开启日志配置选项
             else:
                 logger.warning('未知状态的日志记录', self.if_record_log_var.get())
 
@@ -433,11 +448,11 @@ class OneOsGui:
             if file_path != '':
                 self.log_filepath.set(file_path)
 
-        btn = tk.Button(parent, text='打开', font=_FONT_S,
+        self.log_path_entry_start_button = tk.Button(parent, text='打开', font=_FONT_S,
                         width=10, bg='whitesmoke', command=path_call_back)
         self.log_path_entry = tk.Entry(parent, textvariable=self.log_filepath)
 
-        return self.log_path_entry, btn
+        return self.log_path_entry, self.log_path_entry_start_button
 
     def __top_log_config_3(self, parent):
         frame = tk.Frame(parent)
