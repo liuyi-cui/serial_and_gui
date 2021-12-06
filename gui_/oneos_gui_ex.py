@@ -428,7 +428,7 @@ class OneOsGui:
     def __top_log_config_2_2(self, parent):
 
         def path_call_back():
-            file_path = filedialog.asksaveasfilename()
+            file_path = filedialog.asksaveasfilename(initialfile=f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
             if file_path != '':
                 self.log_filepath.set(file_path)
 
@@ -486,6 +486,9 @@ class OneOsGui:
                         self.operate_logger.add_hander(operate_log_file_path, max_bytes)
                         logger.info(f'开启日志记录：{operate_log_file_path}')
                         self.log_shower.insert(tk.END, f'开启操作日志记录{operate_log_file_path}\n')
+                else:
+                    tkinter.messagebox.showwarning(title='Warning', message='日志上限不能为空')
+                    return
 
             parent.destroy()
 
