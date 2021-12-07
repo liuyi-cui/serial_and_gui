@@ -680,6 +680,11 @@ class OneOsGui:
                                                          message=str(e))
                             self.record_filepath.set('')
                             return
+                        except Exception as e:
+                            tkinter.messagebox.showerror(title='Error',
+                                                         message='读取license存储文件失败，请检查文件格式是否正确')
+                            self.record_filepath.set('')
+                            return
                         self.__do_log_shower_insert(f'导入license文件，'
                                                     f'共导入HID{len(set(self.hid_license_map.hids))}个, '
                                                     f'license{self.hid_license_map.licenses_counts}个\n')
@@ -711,18 +716,21 @@ class OneOsGui:
         return frame_left
 
     def __main_text_left_1(self, parent):  # 日志打印Text
-        self.log_shower = tk.Text(parent, width=50, height=15)
+        sb = tk.Scrollbar(parent)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log_shower = tk.Text(parent, width=50, height=15, yscrollcommand=sb.set)
         self.log_shower.insert(tk.END, '默认关闭操作日志\n')
         self.log_shower.tag_config('error', foreground='red', font=_FONT_B)
         self.log_shower.tag_config('confirm', foreground='green', font=_FONT_B)
         self.log_shower.tag_config('warn', foreground='blue', font=_FONT_B)
+        sb.config(command=self.log_shower.yview)
         return self.log_shower
 
     def __main_text_left_2(self, parent):  # 清除日志按钮
 
         def clean_log():
             self.log_shower.delete(1.0, tk.END)  # 清除text中文本
-            self.__do_log_shower_insert('清除日志...\n', start=1.0)
+            # self.__do_log_shower_insert('清除日志...\n', start=1.0)
         b = tk.Button(parent, text='清除日志', font=_FONT_S, height=1, width=8,
                       bg='#918B8B', padx=1, pady=1, command=clean_log)
         return b
@@ -1052,6 +1060,7 @@ class OneOsGui:
                                                         f'license转码错误\n', tag='warn')
                             self.failed_license.append(license_)
                             self.__refresh_statistics_license()
+                            if_success = False
                             time.sleep(1)
                             continue
                         protocol = build_protocol(license_, component_id=component_id,
