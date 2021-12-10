@@ -84,6 +84,7 @@ class OneOsGui:
 
     def init_var(self):
         self.if_record_log = False  # 日志配置弹窗复选框，是否存储日志
+        self.last_if_record_log = False  # 日志配置弹窗上一次确认按钮时，是否存储日志
         self.if_record_log_var = tk.IntVar()
         self.operate_log_size = tk.StringVar()  # 日志配置弹窗日志上限大小
         self.log_filepath = tk.StringVar()  # 日志存储路径
@@ -510,10 +511,16 @@ class OneOsGui:
                         max_bytes = (min(operate_log_size, 1024/2)) * 1024 * 1024  # 日志最大容量为1024
                         self.operate_logger.add_hander(operate_log_file_path, max_bytes)
                         logger.info(f'开启日志记录：{operate_log_file_path}')
-                        self.log_shower.insert(tk.END, f'开启操作日志记录{operate_log_file_path}\n')
+                        if not self.last_if_record_log:
+                            self.log_shower.insert(tk.END, f'开启操作日志记录{operate_log_file_path}\n')
+                            self.last_if_record_log = True
                 else:
                     tkinter.messagebox.showwarning(title='Warning', message='日志上限不能为空')
                     return
+            else:
+                if self.last_if_record_log:
+                    self.log_shower.insert(tk.END, '关闭操作日志记录')
+                    self.last_if_record_log = False
 
             parent.destroy()
 
