@@ -368,6 +368,9 @@ class OneOsGui:
             self.get_port_list(cb)()
             if self.curr_port.get() in PyBoard.get_list():
                 cb.current(PyBoard.get_list().index(self.curr_port.get()))
+            elif not PyBoard.get_list():
+                logger.info('当前没有可连接的串口')
+                pass
             else:
                 cb.current(0)
         else:
@@ -457,9 +460,14 @@ class OneOsGui:
             if file_path != '':
                 self.log_filepath.set(file_path)
 
-        self.log_path_entry_start_button = tk.Button(parent, text='打开', font=_FONT_S,
-                        width=10, bg='whitesmoke', command=path_call_back)
-        self.log_path_entry = tk.Entry(parent, textvariable=self.log_filepath)
+        if self.if_record_log:
+            self.log_path_entry_start_button = tk.Button(parent, text='打开', font=_FONT_S,
+                            width=10, bg='whitesmoke', command=path_call_back)
+            self.log_path_entry = tk.Entry(parent, textvariable=self.log_filepath)
+        else:
+            self.log_path_entry_start_button = tk.Button(parent, text='打开', font=_FONT_S, state=tk.DISABLED,
+                                                         width=10, bg='whitesmoke', command=path_call_back)
+            self.log_path_entry = tk.Entry(parent, textvariable=self.log_filepath, state=tk.DISABLED)
 
         return self.log_path_entry, self.log_path_entry_start_button
 
@@ -475,7 +483,11 @@ class OneOsGui:
         return l
 
     def __top_log_config_3_2(self, parent):
-        self.operate_log_size_entry = tk.Entry(parent, textvariable=self.operate_log_size, show=None)  # 明文形式显示
+        if self.if_record_log:
+            self.operate_log_size_entry = tk.Entry(parent, textvariable=self.operate_log_size, show=None)  # 明文形式显示
+        else:
+            self.operate_log_size_entry = tk.Entry(parent, textvariable=self.operate_log_size, show=None,
+                                                   state=tk.DISABLED)
         return self.operate_log_size_entry
 
     def __top_log_config_3_3(self, parent):
@@ -486,6 +498,11 @@ class OneOsGui:
         frame = tk.Frame(parent)
 
         def cancel():
+            self.if_record_log = self.last_if_record_log
+            if self.if_record_log:
+                self.if_record_log_var.set(1)
+            else:
+                self.if_record_log_var.set(0)
             parent.destroy()
 
         def confirm():  # 确定时，需要获取是否需要存储日志，日志存储路径和日志的大小
@@ -519,7 +536,7 @@ class OneOsGui:
                     return
             else:
                 if self.last_if_record_log:
-                    self.log_shower.insert(tk.END, '关闭操作日志记录')
+                    self.log_shower.insert(tk.END, '关闭操作日志记录\n')
                     self.last_if_record_log = False
 
             parent.destroy()
