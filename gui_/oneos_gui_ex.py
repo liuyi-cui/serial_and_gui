@@ -95,6 +95,7 @@ class OneOsGui:
         self.run_status = tk.StringVar()  # 运行状态
         self.record_desc = tk.StringVar()  # 记录文件(bottom栏)
         self.record_filepath = tk.StringVar()  # 记录文件路径
+        self.record_filepath_bottom = tk.StringVar()  # 记录文件路径(bottom栏)
         self.hid_filepath = ''  # HID存储文件，当work_type为读HID时，等同于record_filepath的值
         self.license_filepath = ''  # 存储license文件，当work_type为写license时，接收record_filepath的值
         self.port_list = []  # 串口列表，main_top串口下拉框展示
@@ -140,7 +141,7 @@ class OneOsGui:
     def __reset_wait_time(self):
         self.wait_time = 0
 
-    def refresh_var(self, status=StatusEnum.HID.value):  # TODO 两个text 控件也需要刷新
+    def refresh_var(self, status=StatusEnum.HID.value):
         """
         切换工位时，刷新面板展示
         Args:
@@ -158,6 +159,8 @@ class OneOsGui:
         self.log_shower.delete(1.0, tk.END)
         self.operate_shower.delete(1.0, tk.END)
         self.statistic_shower.delete(1.0, tk.END)
+        self.record_filepath_bottom.set('')
+        self.record_filepath.set('')
         if status == 'HID':
             self._refresh_var_hid()
         elif status == 'License':
@@ -252,6 +255,19 @@ class OneOsGui:
         self.log_path_entry.config(state=tk.NORMAL)
         self.log_path_entry_start_button.config(state=tk.NORMAL)
         self.operate_log_size_entry.config(state=tk.NORMAL)
+
+    def __set_record_filepath_bottom(self, filepath: str) -> None:
+        """HID或License文件路径过长而无法完全显示时，分行显示"""
+        interval = 40
+        if len(filepath) < interval:
+            self.record_filepath_bottom.set(filepath)
+        else:
+            temp_path = list(filepath)
+            for i in range(interval, len(temp_path), interval):
+                temp_path.insert(i, '\n')
+
+            ret = ''.join(temp_path)
+            self.record_filepath_bottom.set(ret)
 
     def change_status_to_hid(self):
         self.refresh_var(StatusEnum.HID.value)
@@ -691,6 +707,7 @@ class OneOsGui:
             if file_path != '':
                 if check_file_suffix(file_path):
                     self.record_filepath.set(file_path)
+                    self.__set_record_filepath_bottom(file_path)
                     print('work type:', self.work_type.get())
                     if self.work_type.get() == '读HID':
                         self.hid_filepath = file_path
@@ -703,11 +720,13 @@ class OneOsGui:
                             tkinter.messagebox.showerror(title='Error',
                                                          message=str(e))
                             self.record_filepath.set('')
+                            self.record_filepath_bottom.set('')
                             return
                         except Exception as e:
                             tkinter.messagebox.showerror(title='Error',
                                                          message='读取license存储文件失败，请检查文件格式是否正确')
                             self.record_filepath.set('')
+                            self.record_filepath_bottom.set('')
                             return
                         self.__do_log_shower_insert(f'导入license文件，'
                                                     f'共导入HID{len(set(self.hid_license_map.hids))}个, '
@@ -839,12 +858,13 @@ class OneOsGui:
         return self.record_filepath_label
 
     def __main_bottom_5(self, parent):
-        l = tk.Label(parent, textvariable=self.record_filepath, fg='green')
+        l = tk.Label(parent, textvariable=self.record_filepath_bottom, fg='green')
         return l
 
     def run(self):
-        self.window_.mainloop()
         logger.info('----------------------Process Start-----------------------')
+        self.window_.mainloop()
+        logger.info('----------------------Process End-----------------------')
 
     def __turn_on(self, type_='start'):  # 连接上串口时，更新属性
         self.if_connected.set(f'{self.curr_port.get()}已连接')
