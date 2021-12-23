@@ -1166,6 +1166,8 @@ class OneOsGui:
                         else:
                             self.__do_log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
                             self.success_license.append(license_)
+                            if license_ in self.failed_license:
+                                self.failed_license.remove(license_)
                             self.__refresh_statistics_license()
                     if if_success:
                         self.__refresh_run_start_time()
