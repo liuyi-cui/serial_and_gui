@@ -19,7 +19,7 @@ from setting import TITLE_MAIN
 from utils.convert_utils import b64tostrhex
 from utils.entities import BoardProtocol, PayloadData, ProtocolCommand, DataError, Error_Data_Map
 from utils.file_utils import check_file_suffix, record_HID_activated, read_HID
-from utils.protocol_utils import parse_protocol, build_protocol, check_payload
+from utils.protocol_utils import parse_protocol, build_protocol, check_payload, check_command
 
 # 字体
 _FONT_S = ('微软雅黑', 8)  # 小号字体
@@ -996,6 +996,25 @@ class OneOsGui:
             self.__refresh_statistic_log_shower('fail')
             self.disconnect_to_board()
             return
+
+        if not check_command(board_protocol.payload_data.command, 'hid_response'):  # 指令校验失败
+            logger.warning(f'指令校验失败，预期为0081，收到{board_protocol.payload_data.command}, '
+                           f'数据{board_protocol.payload_data.data}')
+            error_type = Error_Data_Map.get(board_protocol.payload_data.data)
+            if error_type is not None:
+                logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                self.__do_log_shower_insert(f'hid读取错误, '
+                                            f'指令{board_protocol.payload_data.command} 错误类型{error_type}\n')
+            else:
+                logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                self.__do_log_shower_insert(f'hid读取错误, '
+                                            f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
+            self.__do_log_shower_insert(f'解析及校验HID response失败\n', tag='error')
+            self.__refresh_statistic_log_shower('fail')
+            self.disconnect_to_board()
+            time.sleep(1)
+            return
+
         hid_value = board_protocol.payload_data.data
         self.__do_log_shower_insert(f'设备HID读取成功, HID {hid_value}\n')
         if hid_value not in self.record_hids:
@@ -1086,6 +1105,25 @@ class OneOsGui:
                     self.disconnect_to_board()
                     time.sleep(1)  # 可能有板子的插拔动作
                     continue
+
+                if not check_command(board_protocol.payload_data.command, 'hid_response'):  # 指令校验失败
+                    logger.warning(f'指令校验失败，预期为0081，收到{board_protocol.payload_data.command}, '
+                                   f'数据{board_protocol.payload_data.data}')
+                    error_type = Error_Data_Map.get(board_protocol.payload_data.data)
+                    if error_type is not None:
+                        logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                        self.__do_log_shower_insert(f'hid读取错误, '
+                                                    f'指令{board_protocol.payload_data.command} 错误类型{error_type}\n')
+                    else:
+                        logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                        self.__do_log_shower_insert(f'hid读取错误, '
+                                                    f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
+                    self.__do_log_shower_insert(f'设备写入license失败：读取hid失败\n', tag='error')
+                    self.__refresh_statistic_log_shower('fail')
+                    self.disconnect_to_board()
+                    time.sleep(1)
+                    continue
+
                 logger.info('parse hid success')
                 hid_value = board_protocol.payload_data.data
                 self.__do_log_shower_insert(f'获取设备HID成功，HID {hid_value}\n')

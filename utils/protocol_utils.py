@@ -81,7 +81,6 @@ def parse_protocol(protocol_value: str):
     if not check_data_length(data_length, component_id + data):
         raise ProtocolException('payload数据长度校验不通过')
     if not check_check_sum(payload_data_, check_sum):
-        print(payload_data_, check_sum)
         raise ProtocolSumException('校验和校验不通过')
     payload_data = PayloadData(command, data_length, component_id, data)
     board_protocol = BoardProtocol(head, payload_length, payload_data, check_sum)
@@ -137,6 +136,14 @@ def build_protocol(data, component_id='0000', command=ProtocolCommand.hid_reques
     check_num = calc_check_sum(payload_data)
     protocol_package = head + payload_data_length + command + data_length + component_id + data + check_num
     return protocol_package
+
+
+def check_command(command: str, command_type: str) -> bool:
+    """判断报文的payload指令和预期一致"""
+    excepted_command = getattr(ProtocolCommand, command_type).value
+    if command == excepted_command:
+        return True
+    return False
 
 
 def check_payload(payload, command_type: str) -> bool:
