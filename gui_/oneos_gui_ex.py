@@ -1036,6 +1036,8 @@ class OneOsGui:
                     self.__refresh_run_start_time()
                     self.record_hids.append(hid_value)
                     self.new_success_hids.append(hid_value)
+                    if hid_value in self.new_failed_hids:
+                        self.new_failed_hids.remove(hid_value)
                     self.new_add_hids.append(hid_value)
                     self.__refresh_statistics_hid()
                     self.__do_log_shower_insert(f'设备{hid_value}HID存储完成，请更换设备...\n', tag='confirm')
@@ -1045,6 +1047,8 @@ class OneOsGui:
         else:
             if hid_value not in self.new_success_hids:
                 self.new_success_hids.append(hid_value)
+                if hid_value in self.new_failed_hids:
+                    self.new_failed_hids.remove(hid_value)
             self.__refresh_statistics_hid()
             self.wait_time += 1
             self.__do_log_shower_insert(f'设备{hid_value}已完成，请更换设备...\n', tag='warn')
