@@ -2,4 +2,4 @@
 
 
 # gui工具标题
-TITLE_MAIN = 'OneOS License管理工具 -v0.0.2'
+TITLE_MAIN = 'OneOS License管理工具 -v0.0.3'
