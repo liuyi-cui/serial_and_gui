@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """GUI操作界面"""
 import tkinter as tk
+import tkinter.messagebox  # 弹窗
 from collections import namedtuple
 from tkinter import ttk
 from tkinter import filedialog
@@ -11,7 +12,7 @@ from utils.entities import ModeEnum, OperateEnum, ConnEnum, SerialPortConfigurat
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
 _active_color = 'gray'  # 激活状态颜色为浅灰色
-SIZE_POPUPS = (400, 250)  # 弹出窗体大小
+SIZE_POPUPS = (400, 280)  # 弹出窗体大小
 
 
 def center_window(win, width=None, height=None):
@@ -59,6 +60,47 @@ class OneOsGui:
         self.__conn_type.set('serial_port')  # 默认通信方式为串口通信
         self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
 
+    def port_configuration_confirm(self, parent, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller):
+        """
+        确定按钮触发方法
+        TODO 此处需要获取各个下拉框的值，因此_draw_serial_port_configuration应该返回各个cb
+        针对各个下拉框的值，做合理性校验
+        校验成功之后，记录各个下拉框的值
+        """
+        def inner():
+            print('串口配置确定按钮')
+            port = cb_port.get()
+            # 获取串口号
+            if port:
+                self.__serial_port_configuration.port = port
+            print(f'串口号: {port}')
+            # 获取波特率
+            baudrate = cb_baudrate.get()
+            if (isinstance(baudrate, int) or baudrate.isdigit()) and int(baudrate) > 0:
+                self.__serial_port_configuration.baud_rate = baudrate
+                print(f'波特率:{baudrate}')
+            else:
+                tkinter.messagebox.showwarning(title='Warning', message='波特率需要为正整数')
+                return
+            # 获取数据位
+            data_digit = cb_data.get()
+            self.__serial_port_configuration.data_digit = data_digit
+            print(f'数据位: {data_digit}')
+            # 获取校验位
+            check_digit = cb_check.get()
+            self.__serial_port_configuration.check_digit = check_digit
+            print(f'校验位: {check_digit}')
+            # 获取停止位
+            stop_digit = cb_stop.get()
+            self.__serial_port_configuration.stop_digit = stop_digit
+            print(f'停止位: {stop_digit}')
+            # 获取流控
+            stream_controller = cb_stream_controller.get()
+            self.__serial_port_configuration.stream_controller = stream_controller
+            print(f'流控： {stream_controller}')
+            parent.destroy()
+        return inner
+
     def _draw_serial_port_configuration(self, parent):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小，padx, pady等
         """给定界面，绘制串口通信配置项"""
         # 串口号
@@ -78,7 +120,6 @@ class OneOsGui:
                 baudrate_values.append('请手动输入波特率')
                 cb_baudrate.configure(state='normal', value=baudrate_values)
                 index_ = len(baudrate_values) - 1
-                print(index_)
                 cb_baudrate.current(index_)
             else:
                 if '请手动输入波特率' in baudrate_values:
@@ -87,7 +128,9 @@ class OneOsGui:
 
         frame = tk.Frame(parent)
         tk.Label(frame, text='波特率').pack(side=tk.LEFT, padx=10)
-        baudrate_values = [9600, 19200, 38400, 57600, 115200, 'custom']
+        baudrate_values = ['9600', '19200', '38400', '57600', '115200', 'custom']
+        if self.__serial_port_configuration.baud_rate not in baudrate_values:  # 如果手动输入的波特率不在该列表内后面会报错
+            baudrate_values.insert(0, self.__serial_port_configuration.baud_rate)
         cb_baudrate = ttk.Combobox(frame, value=baudrate_values,
                                    width=35, state='readonly')  # TODO 此处需要绑定一个选择后的方法。当波特率选择custom时，变更为可编辑
         cb_baudrate.bind('<<ComboboxSelected>>', update_cb_baudrate)
@@ -97,7 +140,7 @@ class OneOsGui:
         # 数据位
         frame = tk.Frame(parent)
         tk.Label(frame, text='数据位').pack(side=tk.LEFT, padx=10)
-        data_digit_values = [5, 6, 7, 8]
+        data_digit_values = ['5', '6', '7', '8']
         cb_data = ttk.Combobox(frame, value=data_digit_values,
                                width=35, state='readonly')
         cb_data.current(data_digit_values.index(self.__serial_port_configuration.data_digit))
@@ -115,7 +158,7 @@ class OneOsGui:
         # 停止位
         frame = tk.Frame(parent)
         tk.Label(frame, text='停止位').pack(side=tk.LEFT, padx=10)
-        cb_stop = ttk.Combobox(frame, value=[1, ], width=35, state='readonly')
+        cb_stop = ttk.Combobox(frame, value=['1', ], width=35, state='readonly')
         cb_stop.current(0)
         cb_stop.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
@@ -206,25 +249,20 @@ class OneOsGui:
         cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
             self._draw_serial_port_configuration(parent)  # 串口配置项
 
-        def confirm():
-            """
-            确定按钮触发方法
-            TODO 此处需要获取各个下拉框的值，因此_draw_serial_port_configuration应该返回各个cb
-            针对各个下拉框的值，做合理性校验
-            校验成功之后，记录各个下拉框的值
-            """
-            self.__serial_port_configuration.port = cb_port.get()
-            print(f'串口号: {self.__serial_port_configuration.port}')
 
-            print('确定按钮')
 
+        def cancel():
+            print('串口配置取消按钮')
+            parent.destroy()
 
         frame = tk.Frame(parent)
         tk.Button(frame, text='取消', bg='silver', height=3, width=6,
                   command=cancel).pack(side=tk.RIGHT, pady=4, padx=10)
         tk.Button(frame, text='确定', bg='silver', height=3, width=6,
-                  command=confirm).pack(side=tk.RIGHT, pady=4, padx=10)
-
+                  command=self.port_configuration_confirm(parent, cb_port, cb_baudrate,
+                                                          cb_data, cb_check, cb_stop,
+                                                          cb_stream_controller)).pack(side=tk.RIGHT, pady=4, padx=10)
+        frame.pack(pady=10)
 
     def run(self):
         self.window_.mainloop()
