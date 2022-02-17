@@ -53,6 +53,7 @@ class OneOsGui:
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
         self.__operate_type = tk.StringVar()  # 操作工位(读HID/写License-从License文件/写License-从UKey)
         self.__conn_type = tk.StringVar()  # 通信方式(串口/J-Link)
+        self.temp_mcu_info = ()
 
     def init_values(self):
         """定义属性初始值"""
@@ -101,6 +102,20 @@ class OneOsGui:
             stream_controller = cb_stream_controller.get()
             self.__serial_port_configuration.stream_controller = stream_controller
             print(f'流控： {stream_controller}')
+            parent.destroy()
+        return inner
+
+    def mcu_configuration_confirm(self, parent):
+        """芯片选择界面确定按钮触发方法
+        如果mcu_info有值，则替换掉实例的mcu属性
+        关闭界面
+        """
+        def inner():
+            if self.temp_mcu_info:
+                # 不需要进行校验，因此直接赋值
+                self.__mcu_info.get_info(self.temp_mcu_info)
+                self.temp_mcu_info = ()
+                print(self.__mcu_info)
             parent.destroy()
         return inner
 
@@ -254,16 +269,21 @@ class OneOsGui:
             # 获取当前点击的行
             def treeviewClick(event):  # 单击
                 for item in tree.selection():
-                    item_text = tree.item(item, 'value')
-                    print(item_text)
+                    self.temp_mcu_info = tree.item(item, 'value')
+
+            def cancel():
+                frame.destroy()
+
 
             # 鼠标左键抬起
             tree.bind('<ButtonRelease-1>', treeviewClick)
             tk.Label(frame_bottom).pack(side=tk.RIGHT, fill=tk.Y, padx=40)
             tk.Label(frame_bottom).pack(side=tk.BOTTOM, fill=tk.X, pady=20)
-            tk.Button(frame_bottom, text='取消', bg='silver', padx=20, pady=4).pack(side=tk.RIGHT)
+            tk.Button(frame_bottom, text='取消', bg='silver', padx=20, pady=4,
+                      command=cancel).pack(side=tk.RIGHT)
             tk.Label(frame_bottom).pack(side=tk.RIGHT, fill=tk.Y, padx=30)
-            tk.Button(frame_bottom, text='确定', bg='silver', padx=20, pady=4).pack(side=tk.RIGHT)
+            tk.Button(frame_bottom, text='确定', bg='silver', padx=20, pady=4,
+                      command=self.mcu_configuration_confirm(frame)).pack(side=tk.RIGHT)
 
         return inner
 
