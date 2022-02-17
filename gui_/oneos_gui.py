@@ -8,7 +8,7 @@ from tkinter import filedialog
 
 from serial_.pyboard import PyBoard
 from utils.entities import ModeEnum, OperateEnum, ConnEnum  # 操作方式、工位、通信方式
-from utils.entities import SerialPortConfiguration, JLinkConfiguration  # 串口配置项，JLink配置项
+from utils.entities import SerialPortConfiguration, JLinkConfiguration, MCUInfo  # 串口配置项，JLink配置项
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
@@ -61,6 +61,7 @@ class OneOsGui:
         self.__conn_type.set('serial_port')  # 默认通信方式为串口通信
         self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
         self.__jlink_configuration = JLinkConfiguration()  # J-Link通信数据
+        self.__mcu_info = MCUInfo()  # mcu相关信息
 
     def port_configuration_confirm(self, parent, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller):
         """
@@ -181,7 +182,7 @@ class OneOsGui:
             frame = tk.Toplevel()
             frame.transient(parent)
             frame.title('选择芯片')
-            center_window(frame, *(600, 400))
+            center_window(frame, *(650, 400))
             frame_top = tk.Frame(frame)
             frame_bottom = tk.Frame(frame)
             frame_top.pack(side=tk.TOP, fill=tk.X)
@@ -200,6 +201,7 @@ class OneOsGui:
                 tree.heading(column, text=column)
 
             # 往表格内添加内容 TODO 该内容需要从本地文件中获取。需要维护本地文件
+            # TODO 表格的厂家，需要做成下拉框
             contents = [{'Manufacturer': 'ST', 'Device': 'STM32F030C6', 'Core': 'Cortex-M0', 'NumCores': 1,
                          'Flash Size': '32 KB', 'RAM Size': '4 KB'},
                         {'Manufacturer': 'ST', 'Device': 'STM32F030C8', 'Core': 'Cortex-M0', 'NumCores': 1,
@@ -244,7 +246,7 @@ class OneOsGui:
                          'Flash Size': '1024 KB', 'RAM Size': '96 KB'},]
             for idx, content in enumerate(contents):
                 tree.insert('', idx, values=tuple(content.values()))
-            sb = tk.Scrollbar(frame_top)
+            sb = tk.Scrollbar(frame_top, width=32)
             sb.pack(side=tk.RIGHT, fill=tk.Y)
             sb.config(command=tree.yview)
             tree.pack(side=tk.LEFT, fill=tk.Y)
@@ -272,20 +274,20 @@ class OneOsGui:
             return ['79765170989']
 
         frame = tk.Frame(parent)
-        tk.Label(frame, text='连接端口 ').pack(side=tk.LEFT, padx=10)
-        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=20,
+        tk.Label(frame, text='  连接端口').pack(side=tk.LEFT)
+        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=25,
                                     state='readonly')  # TODO 通过pylink获取当前接入的jlink仿真器的序列号
         if self.__jlink_configuration.serial_no != '':  # 上一次已经确定过了仿真器序列号
             cb_serial_no.current(0)
-        cb_serial_no.pack(side=tk.LEFT, padx=10)
+        cb_serial_no.pack(side=tk.LEFT, padx=6)
         frame.pack(pady=6)
         # 接口模式
         frame = tk.Frame(parent)
-        tk.Label(frame, text='接口模式 ').pack(side=tk.LEFT, padx=10)
+        tk.Label(frame, text='  接口模式').pack(side=tk.LEFT)
         interface_type_values = ['JTAG', 'SWD']
-        cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=20, state='readonly')
+        cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=25, state='readonly')
         cb_interface_type.current(interface_type_values.index(self.__jlink_configuration.interface_type))
-        cb_interface_type.pack(side=tk.LEFT, padx=10)
+        cb_interface_type.pack(side=tk.LEFT, padx=6)
         frame.pack(pady=6)
         # 速率(kHZ)
         def update_cb_rate(event):
@@ -303,23 +305,24 @@ class OneOsGui:
                 cb_rate.configure(state='readonly', value=rate_values)
 
         frame = tk.Frame(parent)
-        tk.Label(frame, text='速率(kHZ)').pack(side=tk.LEFT, padx=10)
+        tk.Label(frame, text='速率(kHZ)').pack(side=tk.LEFT)
         rate_values = ['5', '10', '20', '30', '50', '100', '200', '300', '400', '500', '600', '750', '900', '1000',
                        '1334', '1600', '2000', '2667', '3200', '4000', '4800', '5334', '6000', '8000',
                        '9600', '12000', 'custom']
         if self.__jlink_configuration.rate not in rate_values:
             rate_values.insert(0, self.__jlink_configuration.rate)
-        cb_rate = ttk.Combobox(frame, value=rate_values, width=20, state='readonly')
+        cb_rate = ttk.Combobox(frame, value=rate_values, width=25, state='readonly')
         cb_rate.bind('<<ComboboxSelected>>', update_cb_rate)
         cb_rate.current(rate_values.index(self.__jlink_configuration.rate))
-        cb_rate.pack(side=tk.LEFT, padx=10)
+        cb_rate.pack(side=tk.LEFT, padx=2)
         frame.pack(pady=6)
         # MCU
         frame = tk.Frame(parent)
-        tk.Label(frame, text='MCU        ').pack(side=tk.LEFT, padx=5)
+        tk.Label(frame, text='    ').pack(side=tk.LEFT, padx=2)
+        tk.Label(frame, text='MCU  ').pack(side=tk.LEFT, padx=0)
         chip_name = tk.StringVar()  # 芯片名称
-        entry_mcu = tk.Entry(frame, show=None, state='disabled', textvariable=chip_name, width=20)
-        entry_mcu.pack(side=tk.LEFT, padx=2)
+        entry_mcu = tk.Entry(frame, show=None, state='disabled', textvariable=chip_name, width=24)
+        entry_mcu.pack(side=tk.LEFT, padx=1)
         button_mcu = tk.Button(frame, text='...', width=3, height=1, command=self.alter_mcu_win(frame))
         button_mcu.pack(side=tk.LEFT, padx=2)
         frame.pack(pady=6)
@@ -417,8 +420,8 @@ class OneOsGui:
         """弹出J-Link配置项窗口"""
         parent.title('J-Link设置')
         center_window(parent, *SIZE_POPUPS)
-        tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=5)  # 左边填充
-        tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=5)  # 右边填充
+        tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=1)  # 左边填充
+        tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=1)  # 右边填充
         self._draw_jlink_configuration(parent)
         # cb_serial_no, cb_interface_type, cb_rate, cb_mcu, \
         # entry_addr, entry_size = self._draw_jlink_configuration(parent)
