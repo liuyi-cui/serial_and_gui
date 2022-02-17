@@ -5,13 +5,13 @@ from collections import namedtuple
 from tkinter import ttk
 from tkinter import filedialog
 
-from utils.entities import ModeEnum, OperateEnum, ConnEnum   # 操作方式、工位、通信方式
+from serial_.pyboard import PyBoard
+from utils.entities import ModeEnum, OperateEnum, ConnEnum, SerialPortConfiguration   # 操作方式、工位、通信方式、串口配置项
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
 _active_color = 'gray'  # 激活状态颜色为浅灰色
 SIZE_POPUPS = (400, 250)  # 弹出窗体大小
-Port_Config_Item = namedtuple('Port_Config_Item', ['name', 'value'])  # 串口配置项 TODO 考虑更为合适的编写方式
 
 
 def center_window(win, width=None, height=None):
@@ -41,22 +41,94 @@ class OneOsGui:
         center_window(self.window_, 600, 450)
         self.window_.title('OneOS License管理工具')
         self.window_.grab_set()
-        self.init()  # 初始化对象属性
-        self._init()  # 初始化对象属性值
+        self.init_types()  # 初始化对象属性
+        self.init_values()  # 初始化对象属性值
         self.body()  # 绘制初始界面
         self.window_.pack_propagate(True)
 
-    def init(self):
+    def init_types(self):
         """定义属性类型"""
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
         self.__operate_type = tk.StringVar()  # 操作工位(读HID/写License-从License文件/写License-从UKey)
         self.__conn_type = tk.StringVar()  # 通信方式(串口/J-Link)
 
-    def _init(self):
+    def init_values(self):
         """定义属性初始值"""
         self.__mode_type.set('product')  # 默认模式选择为生产模式
         self.__operate_type.set('hid')  # 默认操作工位为读HID
         self.__conn_type.set('serial_port')  # 默认通信方式为串口通信
+        self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
+
+    def _draw_serial_port_configuration(self, parent):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小，padx, pady等
+        """给定界面，绘制串口通信配置项"""
+        # 串口号
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='串口号').pack(side=tk.LEFT, padx=10)
+        cb_port = ttk.Combobox(frame, value=[self.__serial_port_configuration.port], width=35,
+                     state='readonly')
+        if self.__serial_port_configuration.port != '':
+            cb_port.current(0)
+        cb_port.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # 波特率
+        def update_cb_baudrate(event):
+            """波特率下拉框绑定事件"""
+            value = cb_baudrate.get()
+            if value == 'custom':  # 用户输入
+                baudrate_values.append('请手动输入波特率')
+                cb_baudrate.configure(state='normal', value=baudrate_values)
+                index_ = len(baudrate_values) - 1
+                print(index_)
+                cb_baudrate.current(index_)
+            else:
+                if '请手动输入波特率' in baudrate_values:
+                    baudrate_values.pop(-1)
+                cb_baudrate.configure(state='readonly', value=baudrate_values)
+
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='波特率').pack(side=tk.LEFT, padx=10)
+        baudrate_values = [9600, 19200, 38400, 57600, 115200, 'custom']
+        cb_baudrate = ttk.Combobox(frame, value=baudrate_values,
+                                   width=35, state='readonly')  # TODO 此处需要绑定一个选择后的方法。当波特率选择custom时，变更为可编辑
+        cb_baudrate.bind('<<ComboboxSelected>>', update_cb_baudrate)
+        cb_baudrate.current(baudrate_values.index(self.__serial_port_configuration.baud_rate))
+        cb_baudrate.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # 数据位
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='数据位').pack(side=tk.LEFT, padx=10)
+        data_digit_values = [5, 6, 7, 8]
+        cb_data = ttk.Combobox(frame, value=data_digit_values,
+                               width=35, state='readonly')
+        cb_data.current(data_digit_values.index(self.__serial_port_configuration.data_digit))
+        cb_data.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # 校验位
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='校验位').pack(side=tk.LEFT, padx=10)
+        check_digit_values = ['None', 'Even', 'Odd', 'Mark', 'Space']
+        cb_check = ttk.Combobox(frame, value=check_digit_values,
+                                width=35, state='readonly')
+        cb_check.current(check_digit_values.index(self.__serial_port_configuration.check_digit))
+        cb_check.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # 停止位
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='停止位').pack(side=tk.LEFT, padx=10)
+        cb_stop = ttk.Combobox(frame, value=[1, ], width=35, state='readonly')
+        cb_stop.current(0)
+        cb_stop.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # 流控
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='流   控').pack(side=tk.LEFT, padx=10)
+        stream_controller_values = ['None', 'RTS/CTS', 'XON/XOFF']
+        cb_stream_controller = ttk.Combobox(frame, value=stream_controller_values,
+                                            width=35, state='readonly')
+        cb_stream_controller.current(stream_controller_values.index(self.__serial_port_configuration.stream_controller))
+        cb_stream_controller.pack(pady=6)
+        frame.pack(pady=6)
+        return cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller
 
     def body(self):  # 绘制主题  TODO 定义几种frame布局，更改布局时，切换frame。需要一个变量存储当前的布局，如果同当前的模式
 
@@ -131,28 +203,28 @@ class OneOsGui:
         center_window(parent, *SIZE_POPUPS)
         tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=20)  # 左边缘空隙
         tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
+        cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
+            self._draw_serial_port_configuration(parent)  # 串口配置项
 
-        port_config_items = {
-            '串口号': Port_Config_Item(name='port_cb_port_config', value=['COM1', 'COM2', 'COM100']),  # TODO 调用串口获取当前串口号
-            '波特率': Port_Config_Item(name='baudrate_cb_port_config', value=[115200, 9600, 19200, 38400, 57600, 'custom']),
-            '数据位': Port_Config_Item(name='data_digit_port_config', value=[8, 5, 6, 7]),
-            '校验位': Port_Config_Item(name='check_digit_port_config', value=['None', 'Even', 'Odd', 'Mark', 'Space']),
-            '停止位': Port_Config_Item(name='stop_digit_port_config', value=[1, ]),
-            '流控   ': Port_Config_Item(name='stream_controller', value=['None', 'RTS/CTS', 'XON/XOFF']),
-        }
-        for _k, _v in port_config_items.items():
-            self.__build_port_config_combobox(parent, _k, _v).pack(pady=6)  # TODO 这里考虑是否有必要写成方法，直接
+        def confirm():
+            """
+            确定按钮触发方法
+            TODO 此处需要获取各个下拉框的值，因此_draw_serial_port_configuration应该返回各个cb
+            针对各个下拉框的值，做合理性校验
+            校验成功之后，记录各个下拉框的值
+            """
+            self.__serial_port_configuration.port = cb_port.get()
+            print(f'串口号: {self.__serial_port_configuration.port}')
 
-    def __build_port_config_combobox(self, parent, k_name, k_value):
-        """日志配置界面，批量生成lable和对应的下拉框"""
+            print('确定按钮')
+
+
         frame = tk.Frame(parent)
-        tk.Label(frame, text=k_name).pack(side=tk.LEFT, padx=10)
-        setattr(self, k_value.name, ttk.Combobox(frame, value=k_value.value, width=35, state='readonly'))
-        # TODO 对串口号的下拉框做额外的配置
-        cb = getattr(self, k_value.name)  # TODO 设置为实例属性，是为了将组件对象储存起来，方便随时获取到下拉框的值。否则，只能在生成组件的地方获取。
-        cb.current(0)
-        cb.pack(side=tk.LEFT, padx=5)
-        return frame
+        tk.Button(frame, text='取消', bg='silver', height=3, width=6,
+                  command=cancel).pack(side=tk.RIGHT, pady=4, padx=10)
+        tk.Button(frame, text='确定', bg='silver', height=3, width=6,
+                  command=confirm).pack(side=tk.RIGHT, pady=4, padx=10)
+
 
     def run(self):
         self.window_.mainloop()
