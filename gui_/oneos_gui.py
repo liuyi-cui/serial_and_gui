@@ -7,7 +7,8 @@ from tkinter import ttk
 from tkinter import filedialog
 
 from serial_.pyboard import PyBoard
-from utils.entities import ModeEnum, OperateEnum, ConnEnum, SerialPortConfiguration   # 操作方式、工位、通信方式、串口配置项
+from utils.entities import ModeEnum, OperateEnum, ConnEnum  # 操作方式、工位、通信方式
+from utils.entities import SerialPortConfiguration, JLinkConfiguration  # 串口配置项，JLink配置项
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
@@ -59,6 +60,7 @@ class OneOsGui:
         self.__operate_type.set('hid')  # 默认操作工位为读HID
         self.__conn_type.set('serial_port')  # 默认通信方式为串口通信
         self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
+        self.__jlink_configuration = JLinkConfiguration()  # J-Link通信数据
 
     def port_configuration_confirm(self, parent, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller):
         """
@@ -101,7 +103,7 @@ class OneOsGui:
             parent.destroy()
         return inner
 
-    def _draw_serial_port_configuration(self, parent):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小，padx, pady等
+    def _draw_serial_port_configuration(self, parent):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小、padx、pady等参数
         """给定界面，绘制串口通信配置项"""
         # 串口号
         frame = tk.Frame(parent)
@@ -132,7 +134,7 @@ class OneOsGui:
         if self.__serial_port_configuration.baud_rate not in baudrate_values:  # 如果手动输入的波特率不在该列表内后面会报错
             baudrate_values.insert(0, self.__serial_port_configuration.baud_rate)
         cb_baudrate = ttk.Combobox(frame, value=baudrate_values,
-                                   width=35, state='readonly')  # TODO 此处需要绑定一个选择后的方法。当波特率选择custom时，变更为可编辑
+                                   width=35, state='readonly')
         cb_baudrate.bind('<<ComboboxSelected>>', update_cb_baudrate)
         cb_baudrate.current(baudrate_values.index(self.__serial_port_configuration.baud_rate))
         cb_baudrate.pack(side=tk.LEFT, padx=10)
@@ -172,6 +174,155 @@ class OneOsGui:
         cb_stream_controller.pack(pady=6)
         frame.pack(pady=6)
         return cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller
+
+    def alter_mcu_win(self, parent):
+        """弹出MCU菜单栏"""
+        def inner():
+            frame = tk.Toplevel()
+            frame.transient(parent)
+            frame.title('选择芯片')
+            center_window(frame, *(600, 400))
+            frame_top = tk.Frame(frame)
+            frame_bottom = tk.Frame(frame)
+            frame_top.pack(side=tk.TOP, fill=tk.X)
+            frame_bottom.pack(side=tk.BOTTOM, fill=tk.X)
+            columns = ('Manufacturer', 'Device', 'Core', 'NumCores', 'Flash Size', 'RAM Size')  # 定义列名称
+            displaycolumns = columns  # 表示哪些列可以显示，以及显示顺序。'#all'表示全部显示
+
+            tree = ttk.Treeview(frame_top, columns=columns, displaycolumns=displaycolumns,
+                                show='headings')  # 创建treeview对象
+            # 设置表格文字居中，以及表格宽度
+            for column in columns:
+                tree.column(column, anchor='center', width=100, minwidth=100)
+
+            # 设置表格头部标题
+            for column in columns:
+                tree.heading(column, text=column)
+
+            # 往表格内添加内容 TODO 该内容需要从本地文件中获取。需要维护本地文件
+            contents = [{'Manufacturer': 'ST', 'Device': 'STM32F030C6', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '32 KB', 'RAM Size': '4 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030C8', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '64 KB', 'RAM Size': '8 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030F4', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '16 KB', 'RAM Size': '4 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030R8', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '64 KB', 'RAM Size': '8 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F042F4', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '16 KB', 'RAM Size': '6 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F091VC', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '256 KB', 'RAM Size': '32 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32L475VG', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '1024 KB', 'RAM Size': '96 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030C6', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '32 KB', 'RAM Size': '4 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030C8', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '64 KB', 'RAM Size': '8 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030F4', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '16 KB', 'RAM Size': '4 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030R8', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '64 KB', 'RAM Size': '8 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F042F4', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '16 KB', 'RAM Size': '6 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F091VC', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '256 KB', 'RAM Size': '32 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32L475VG', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '1024 KB', 'RAM Size': '96 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030C6', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '32 KB', 'RAM Size': '4 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030C8', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '64 KB', 'RAM Size': '8 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030F4', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '16 KB', 'RAM Size': '4 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F030R8', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '64 KB', 'RAM Size': '8 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F042F4', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '16 KB', 'RAM Size': '6 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32F091VC', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '256 KB', 'RAM Size': '32 KB'},
+                        {'Manufacturer': 'ST', 'Device': 'STM32L475VG', 'Core': 'Cortex-M0', 'NumCores': 1,
+                         'Flash Size': '1024 KB', 'RAM Size': '96 KB'},]
+            for idx, content in enumerate(contents):
+                tree.insert('', idx, values=tuple(content.values()))
+            sb = tk.Scrollbar(frame_top)
+            sb.pack(side=tk.RIGHT, fill=tk.Y)
+            sb.config(command=tree.yview)
+            tree.pack(side=tk.LEFT, fill=tk.Y)
+
+            # 获取当前点击的行
+            def treeviewClick(event):  # 单击
+                for item in tree.selection():
+                    item_text = tree.item(item, 'value')
+                    print(item_text)
+
+            # 鼠标左键抬起
+            tree.bind('<ButtonRelease-1>', treeviewClick)
+            tk.Label(frame_bottom).pack(side=tk.RIGHT, fill=tk.Y, padx=40)
+            tk.Label(frame_bottom).pack(side=tk.BOTTOM, fill=tk.X, pady=20)
+            tk.Button(frame_bottom, text='取消', bg='silver', padx=20, pady=4).pack(side=tk.RIGHT)
+            tk.Label(frame_bottom).pack(side=tk.RIGHT, fill=tk.Y, padx=30)
+            tk.Button(frame_bottom, text='确定', bg='silver', padx=20, pady=4).pack(side=tk.RIGHT)
+
+        return inner
+
+    def _draw_jlink_configuration(self, parent):  # 给定界面，绘制jlink配置项 TODO 还可以添加字体大小颜色、padx、pady等参数
+        """给定界面，绘制jlink通信配置项"""
+        # 连接端口
+        def get_serial_no():
+            return ['79765170989']
+
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='连接端口 ').pack(side=tk.LEFT, padx=10)
+        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=20,
+                                    state='readonly')  # TODO 通过pylink获取当前接入的jlink仿真器的序列号
+        if self.__jlink_configuration.serial_no != '':  # 上一次已经确定过了仿真器序列号
+            cb_serial_no.current(0)
+        cb_serial_no.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # 接口模式
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='接口模式 ').pack(side=tk.LEFT, padx=10)
+        interface_type_values = ['JTAG', 'SWD']
+        cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=20, state='readonly')
+        cb_interface_type.current(interface_type_values.index(self.__jlink_configuration.interface_type))
+        cb_interface_type.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # 速率(kHZ)
+        def update_cb_rate(event):
+            """速率下拉框绑定事件"""
+            nonlocal rate_values
+            value = cb_rate.get()
+            if value == 'custom':  # 用户手动输入
+                rate_values.append('请手动输入传输速率')
+                cb_rate.configure(state='normal', value=rate_values)
+                index_ = len(rate_values) - 1
+                cb_rate.current(index_)
+            else:
+                if '请手动输入传输速率' in rate_values:
+                    rate_values = rate_values[:-1]
+                cb_rate.configure(state='readonly', value=rate_values)
+
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='速率(kHZ)').pack(side=tk.LEFT, padx=10)
+        rate_values = ['5', '10', '20', '30', '50', '100', '200', '300', '400', '500', '600', '750', '900', '1000',
+                       '1334', '1600', '2000', '2667', '3200', '4000', '4800', '5334', '6000', '8000',
+                       '9600', '12000', 'custom']
+        if self.__jlink_configuration.rate not in rate_values:
+            rate_values.insert(0, self.__jlink_configuration.rate)
+        cb_rate = ttk.Combobox(frame, value=rate_values, width=20, state='readonly')
+        cb_rate.bind('<<ComboboxSelected>>', update_cb_rate)
+        cb_rate.current(rate_values.index(self.__jlink_configuration.rate))
+        cb_rate.pack(side=tk.LEFT, padx=10)
+        frame.pack(pady=6)
+        # MCU
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='MCU        ').pack(side=tk.LEFT, padx=5)
+        chip_name = tk.StringVar()  # 芯片名称
+        entry_mcu = tk.Entry(frame, show=None, state='disabled', textvariable=chip_name, width=20)
+        entry_mcu.pack(side=tk.LEFT, padx=2)
+        button_mcu = tk.Button(frame, text='...', width=3, height=1, command=self.alter_mcu_win(frame))
+        button_mcu.pack(side=tk.LEFT, padx=2)
+        frame.pack(pady=6)
 
     def body(self):  # 绘制主题  TODO 定义几种frame布局，更改布局时，切换frame。需要一个变量存储当前的布局，如果同当前的模式
 
@@ -236,7 +387,7 @@ class OneOsGui:
         if name == 'port':
             self.alter_port_win(frame)
         elif name == 'J-Link':
-            pass
+            self.alter_jlink_win(frame)
         elif name == 'log':
             pass
 
@@ -248,8 +399,6 @@ class OneOsGui:
         tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=20)  # 右边缘空隙
         cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
             self._draw_serial_port_configuration(parent)  # 串口配置项
-
-
 
         def cancel():
             print('串口配置取消按钮')
@@ -263,6 +412,17 @@ class OneOsGui:
                                                           cb_data, cb_check, cb_stop,
                                                           cb_stream_controller)).pack(side=tk.RIGHT, pady=4, padx=10)
         frame.pack(pady=10)
+
+    def alter_jlink_win(self, parent) -> None:
+        """弹出J-Link配置项窗口"""
+        parent.title('J-Link设置')
+        center_window(parent, *SIZE_POPUPS)
+        tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=5)  # 左边填充
+        tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=5)  # 右边填充
+        self._draw_jlink_configuration(parent)
+        # cb_serial_no, cb_interface_type, cb_rate, cb_mcu, \
+        # entry_addr, entry_size = self._draw_jlink_configuration(parent)
+
 
     def run(self):
         self.window_.mainloop()
