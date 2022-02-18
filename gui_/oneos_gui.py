@@ -3,12 +3,13 @@
 import tkinter as tk
 import tkinter.messagebox  # 弹窗
 from collections import namedtuple
+from datetime import datetime
 from tkinter import ttk
 from tkinter import filedialog
 
 from serial_.pyboard import PyBoard
 from utils.entities import ModeEnum, OperateEnum, ConnEnum  # 操作方式、工位、通信方式
-from utils.entities import SerialPortConfiguration, JLinkConfiguration, MCUInfo  # 串口配置项，JLink配置项
+from utils.entities import SerialPortConfiguration, JLinkConfiguration, LogConfiguration, MCUInfo  # 串口配置项，JLink配置项，日志配置项，MCU信息
 from utils.utility import is_hex
 
 _font_s = ('微软雅黑', 8)  # 字体
@@ -63,6 +64,7 @@ class OneOsGui:
         self.__conn_type.set('serial_port')  # 默认通信方式为串口通信
         self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
         self.__jlink_configuration = JLinkConfiguration()  # J-Link通信数据
+        self.__log_configuration = LogConfiguration()  # 日志配置数据
         self.__mcu_info = MCUInfo()  # mcu相关信息
 
     def port_configuration_confirm(self, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller, parent=None):
@@ -417,6 +419,110 @@ class OneOsGui:
         frame.pack(pady=6, fill=tk.X)
         return cb_serial_no, cb_interface_type, cb_rate, entry_mcu, entry_license_addr, entry_license_size
 
+    def _draw_log_configuration(self, parent):  # TODO 还可以添加字体大小、padx、pady等参数
+        """给定界面，绘制日志配置项"""
+        is_open = tk.IntVar()
+        log_path = tk.StringVar()
+        max_size = tk.StringVar()
+        is_open.set(self.__log_configuration.is_open.get())
+        log_path.set(self.__log_configuration.log_path.get())
+        max_size.set(self.__log_configuration.max_size.get())
+        # 是否打开日志记录
+        frame = tk.Frame(parent)
+
+        def refresh_if_record_status():
+            if is_open.get():  # 开启日志记录
+                print('开启日志记录')  # TODO 需要设置其余配置项是否可配置
+                entry_log_path.configure(state=tk.NORMAL)
+                button_log_path.configure(state=tk.NORMAL)
+                entry_log_size.configure(state=tk.NORMAL)
+            else:
+                entry_log_path.configure(state=tk.DISABLED)
+                button_log_path.configure(state=tk.DISABLED)
+                entry_log_size.configure(state=tk.DISABLED)
+                print('关闭日志记录')
+
+        cb_if_record = tk.Checkbutton(frame, text='记录日志', variable=is_open,
+                                      onvalue=1, offvalue=0, command=refresh_if_record_status)
+        cb_if_record.pack(side=tk.LEFT)
+        frame.pack(fill=tk.X, pady=5)
+        # 存储日志
+        frame = tk.Frame(parent)
+
+        def path_call_back():
+            file_path = filedialog.asksaveasfilename(initialfile=f"{datetime.now().strftime('%Y%m%d%H%M%S')}.log")
+            if file_path != '':
+                log_path.set(file_path)
+
+        tk.Label(frame, text='存储日志').pack(side=tk.LEFT)
+        entry_log_path = tk.Entry(frame, textvariable=log_path, width=35)
+        button_log_path = tk.Button(frame, text='打开', width=10, bg='whitesmoke', command=path_call_back)
+        if not is_open.get():  # 未开启日志记录
+            entry_log_path.configure(state=tk.DISABLED)
+            button_log_path.configure(state=tk.DISABLED)
+        entry_log_path.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        button_log_path.pack(side=tk.RIGHT, padx=5)
+        frame.pack(fill=tk.X, pady=5)
+        # 日志大小上限
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='日志大小上限').pack(side=tk.LEFT)
+        entry_log_size = tk.Entry(frame, textvariable=max_size, show=None)
+        if not is_open.get():  # 未开启日志记录
+            entry_log_size.configure(state=tk.DISABLED)
+        entry_log_size.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        tk.Label(frame, text='MB').pack(side=tk.LEFT, padx=15)
+        frame.pack(fill=tk.X, pady=5)
+        # 确定取消按钮
+        frame = tk.Frame(parent)
+
+        def cancel():
+            print('日志配置取消按钮')
+            parent.destroy()
+
+        def confirm():
+            """
+            如果开启了日志记录，则校验填入的路径以及日志大小时候正确
+            校验成功，则更新__log_configuration的各属性值
+            如果没有开启日志记录，同取消按钮
+            """
+            if is_open.get():  # 开启了日志记录
+                log_path_value = log_path.get()
+                if not log_path_value:  # 没有选择存储文件
+                    tkinter.messagebox.showwarning(title='Warning', message='请选择存储日志文件')
+                    return
+                max_size_value = max_size.get()
+                if max_size_value:
+                    if not max_size_value.isdigit():
+                        tkinter.messagebox.showwarning(title='Warning', message='日志大小需要为纯数字')
+                        entry_log_size.delete(0, tk.END)
+                        return
+                    if float(max_size_value) <= 0:
+                        tkinter.messagebox.showwarning(title='Warning', message='日志大小需要为正整数')
+                        entry_log_size.delete(0, tk.END)
+                        return
+                    self.__log_configuration.is_open.set(1)
+                    self.__log_configuration.log_path.set(log_path_value)
+                    self.__log_configuration.max_size.set(max_size_value)
+                else:
+                    tkinter.messagebox.showwarning(title='Warning', message='日志上限不能为空')
+                    return
+            else:
+                self.__log_configuration.is_open.set(0)
+            parent.destroy()
+            print(f'是否记录日志: {self.__log_configuration.is_open.get()}')
+            print(f'日志存储路径: {self.__log_configuration.log_path.get()}')
+            print(f'日志大小上限: {self.__log_configuration.max_size.get()}')
+
+            print('日志配置确定按钮')
+
+        tk.Button(frame, text='取消', bg='silver', height=1, width=8, command=cancel).pack(
+            side=tk.RIGHT, pady=4, padx=10
+        )
+        tk.Button(frame, text='确定', bg='silver', height=1, width=8, command=confirm).pack(
+            side=tk.RIGHT, pady=4, padx=10
+        )
+        frame.pack(fill=tk.X, pady=10)
+
     def body(self):  # 绘制主题  TODO 定义几种frame布局，更改布局时，切换frame。需要一个变量存储当前的布局，如果同当前的模式
 
         self.draw_menu(self.window_)  # 绘制菜单栏，固定布局
@@ -482,7 +588,7 @@ class OneOsGui:
         elif name == 'J-Link':
             self.alter_jlink_win(frame)
         elif name == 'log':
-            pass
+            self.alter_log_win(frame)
 
     def alter_port_win(self, parent) -> None:
         """弹出串口配置窗口"""
@@ -530,6 +636,12 @@ class OneOsGui:
                                                            entry_mcu, entry_license_addr,
                                                            entry_license_size, parent=parent)).pack(side=tk.RIGHT, pady=4, padx=20)
         frame.pack(pady=10)
+
+    def alter_log_win(self, parent):
+        """弹出日志配置界面"""
+        parent.title('日志设置')
+        center_window(parent, *(400, 180))
+        self._draw_log_configuration(parent)  # 日志配置项
 
     def run(self):
         self.window_.mainloop()
