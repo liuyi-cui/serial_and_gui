@@ -9,6 +9,7 @@ from tkinter import filedialog
 from serial_.pyboard import PyBoard
 from utils.entities import ModeEnum, OperateEnum, ConnEnum  # 操作方式、工位、通信方式
 from utils.entities import SerialPortConfiguration, JLinkConfiguration, MCUInfo  # 串口配置项，JLink配置项
+from utils.utility import is_hex
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
@@ -64,15 +65,15 @@ class OneOsGui:
         self.__jlink_configuration = JLinkConfiguration()  # J-Link通信数据
         self.__mcu_info = MCUInfo()  # mcu相关信息
 
-    def port_configuration_confirm(self, parent, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller):
+    def port_configuration_confirm(self, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller, parent=None):
         """
-        确定按钮触发方法
+        串口配置确定按钮触发方法()
         TODO 此处需要获取各个下拉框的值，因此_draw_serial_port_configuration应该返回各个cb
         针对各个下拉框的值，做合理性校验
-        校验成功之后，记录各个下拉框的值
+        校验成功之后，记录各个下拉框的值(需要在几个地方共享)
         """
         def inner():
-            print('串口配置确定按钮')
+            print('串口配置确定按钮触发方法')
             port = cb_port.get()
             # 获取串口号
             if port:
@@ -102,7 +103,63 @@ class OneOsGui:
             stream_controller = cb_stream_controller.get()
             self.__serial_port_configuration.stream_controller = stream_controller
             print(f'流控： {stream_controller}')
-            parent.destroy()
+            if parent is not None:
+                parent.destroy()
+        return inner
+
+    def jlink_configuration_confirm(self, cb_serial_no, cb_interface_type, cb_rate, entry_mcu, entry_license_addr,
+                                    entry_license_size, parent=None):
+        """
+        J-Link配置项确定按钮触发方法
+        针对各个下拉框的值，做合理性校验
+        校验成功之后，记录各个下拉框的值(需要在几个地方共享)
+        Args:
+            cb_serial_no: 连接端口控件(下拉框)
+            cb_interface_type: 接口类型控件(下拉框)
+            cb_rate: 传输速率控件(下拉框)
+            entry_mcu: 芯片类型控件(Entry)
+            entry_license_addr: license存储地址控件(Entry)
+            entry_license_size: license最大存储空间(Entry)
+            parent: 父界面，有或者没有
+
+        Returns:
+
+        """
+        def inner():
+            print('J-Link配置确定按钮触发方法')
+            # 仿真器序列号
+            serial_no = cb_serial_no.get()
+            if not serial_no:
+                tkinter.messagebox.showwarning(title='连接端口', message='未选择仿真器序列号')
+                return
+            self.__jlink_configuration.serial_no = serial_no
+            # 接口类型
+            interface_type = cb_interface_type.get()
+            self.__jlink_configuration.interface_type = interface_type
+            # 速率
+            rate = cb_rate.get()
+            if (isinstance(rate, int) or rate.isdigit()) and int(rate) > 0:
+                self.__jlink_configuration.rate = rate
+            else:
+                tkinter.messagebox.showwarning(title='速率(kHZ)', message='传输速率需要为正整数')
+                return
+            # MCU
+            self.__jlink_configuration.mcu = self.__mcu_info.device
+            # license存储地址
+            license_addr = entry_license_addr.get()  # 16进制的字符
+            if not is_hex(license_addr):
+                tkinter.messagebox.showwarning(title='License存储地址', message='请输入正确的16进制字符')
+                return
+            self.__jlink_configuration.license_addr = license_addr
+            # license可存储空间大小
+            license_size = entry_license_size.get()  # 判断是纯数字就可以
+            if (isinstance(license_size, int) or license_size.isdigit()) and int(license_size) > 0:
+                self.__jlink_configuration.license_size_stored = license_size
+            else:
+                tkinter.messagebox.showwarning(title='license存储区域大小', message='需要为正整数')
+                return
+            if parent is not None:
+                parent.destroy()
         return inner
 
     def mcu_configuration_confirm(self, parent):
@@ -358,6 +415,7 @@ class OneOsGui:
         entry_license_size = tk.Entry(frame, show=None, textvariable=self.__mcu_info.flash_size, width=33)
         entry_license_size.pack(side=tk.LEFT, padx=12)
         frame.pack(pady=6, fill=tk.X)
+        return cb_serial_no, cb_interface_type, cb_rate, entry_mcu, entry_license_addr, entry_license_size
 
     def body(self):  # 绘制主题  TODO 定义几种frame布局，更改布局时，切换frame。需要一个变量存储当前的布局，如果同当前的模式
 
@@ -443,9 +501,9 @@ class OneOsGui:
         tk.Button(frame, text='取消', bg='silver', height=3, width=6,
                   command=cancel).pack(side=tk.RIGHT, pady=4, padx=10)
         tk.Button(frame, text='确定', bg='silver', height=3, width=6,
-                  command=self.port_configuration_confirm(parent, cb_port, cb_baudrate,
+                  command=self.port_configuration_confirm(cb_port, cb_baudrate,
                                                           cb_data, cb_check, cb_stop,
-                                                          cb_stream_controller)).pack(side=tk.RIGHT, pady=4, padx=10)
+                                                          cb_stream_controller, parent)).pack(side=tk.RIGHT, pady=4, padx=10)
         frame.pack(pady=10)
 
     def alter_jlink_win(self, parent) -> None:
@@ -454,10 +512,24 @@ class OneOsGui:
         center_window(parent, *(500, 300))
         tk.Label(parent, bg='red').pack(side=tk.LEFT, fill=tk.Y, padx=1)  # 左边填充
         tk.Label(parent, bg='red').pack(side=tk.RIGHT, fill=tk.Y, padx=1)  # 右边填充
-        self._draw_jlink_configuration(parent)
-        # cb_serial_no, cb_interface_type, cb_rate, cb_mcu, \
-        # entry_addr, entry_size = self._draw_jlink_configuration(parent)
+        # 绘制J-Link配置项界面，并获取连接端口、接口模式、速率、芯片名称、license存储地址、license存储区域大小控件，供确定按钮使用
+        cb_serial_no, cb_interface_type, cb_rate, entry_mcu, \
+        entry_license_addr, entry_license_size = self._draw_jlink_configuration(parent)
 
+        def cancel():
+            """取消按钮绑定方法"""
+            print('J-Link配置取消按钮')
+            parent.destroy()
+
+        frame = tk.Frame(parent)
+        # 确定按钮和取消按钮
+        tk.Button(frame, text='取消', bg='silver', height=1, width=6,
+                  command=cancel).pack(side=tk.RIGHT, pady=4, padx=20)
+        tk.Button(frame, text='确定', bg='silver', height=1, width=6,
+                  command=self.jlink_configuration_confirm(cb_serial_no, cb_interface_type, cb_rate,
+                                                           entry_mcu, entry_license_addr,
+                                                           entry_license_size, parent=parent)).pack(side=tk.RIGHT, pady=4, padx=20)
+        frame.pack(pady=10)
 
     def run(self):
         self.window_.mainloop()
