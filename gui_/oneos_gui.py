@@ -40,7 +40,7 @@ class OneOsGui:
 
     def __init__(self):
         self.window_ = tk.Tk()
-        center_window(self.window_, 600, 450)
+        center_window(self.window_, 950, 660)
         self.window_.title('OneOS License管理工具')
         self.window_.grab_set()
         self.init_types()  # 初始化对象属性
@@ -294,21 +294,21 @@ class OneOsGui:
             return ['79765170989']
 
         frame = tk.Frame(parent)
-        tk.Label(frame, text='  连接端口').pack(side=tk.LEFT)
-        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=25,
+        tk.Label(frame, text='连接端口').pack(side=tk.LEFT)
+        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=30,
                                     state='readonly')  # TODO 通过pylink获取当前接入的jlink仿真器的序列号
         if self.__jlink_configuration.serial_no != '':  # 上一次已经确定过了仿真器序列号
             cb_serial_no.current(0)
-        cb_serial_no.pack(side=tk.LEFT, padx=6)
-        frame.pack(pady=6)
+        cb_serial_no.pack(side=tk.LEFT, padx=80)
+        frame.pack(pady=6, fill=tk.X)
         # 接口模式
         frame = tk.Frame(parent)
-        tk.Label(frame, text='  接口模式').pack(side=tk.LEFT)
+        tk.Label(frame, text='接口模式').pack(side=tk.LEFT)
         interface_type_values = ['JTAG', 'SWD']
-        cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=25, state='readonly')
+        cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=30, state='readonly')
         cb_interface_type.current(interface_type_values.index(self.__jlink_configuration.interface_type))
-        cb_interface_type.pack(side=tk.LEFT, padx=6)
-        frame.pack(pady=6)
+        cb_interface_type.pack(side=tk.LEFT, padx=80)
+        frame.pack(pady=6, fill=tk.X)
         # 速率(kHZ)
         def update_cb_rate(event):
             """速率下拉框绑定事件"""
@@ -331,21 +331,33 @@ class OneOsGui:
                        '9600', '12000', 'custom']
         if self.__jlink_configuration.rate not in rate_values:
             rate_values.insert(0, self.__jlink_configuration.rate)
-        cb_rate = ttk.Combobox(frame, value=rate_values, width=25, state='readonly')
+        cb_rate = ttk.Combobox(frame, value=rate_values, width=30, state='readonly')
         cb_rate.bind('<<ComboboxSelected>>', update_cb_rate)
         cb_rate.current(rate_values.index(self.__jlink_configuration.rate))
-        cb_rate.pack(side=tk.LEFT, padx=2)
-        frame.pack(pady=6)
+        cb_rate.pack(side=tk.LEFT, padx=73)
+        frame.pack(pady=6, fill=tk.X)
         # MCU
         frame = tk.Frame(parent)
-        tk.Label(frame, text='    ').pack(side=tk.LEFT, padx=2)
-        tk.Label(frame, text='MCU  ').pack(side=tk.LEFT, padx=0)
-        chip_name = tk.StringVar()  # 芯片名称
-        entry_mcu = tk.Entry(frame, show=None, state='disabled', textvariable=chip_name, width=24)
-        entry_mcu.pack(side=tk.LEFT, padx=1)
+        tk.Label(frame, text='MCU                        ').pack(side=tk.LEFT, padx=0)
+        entry_mcu = tk.Entry(frame, show=None, state='disabled', textvariable=self.__mcu_info.device, width=33)
+        entry_mcu.pack(side=tk.LEFT, padx=2)
         button_mcu = tk.Button(frame, text='...', width=3, height=1, command=self.alter_mcu_win(frame))
-        button_mcu.pack(side=tk.LEFT, padx=2)
-        frame.pack(pady=6)
+        button_mcu.pack(side=tk.LEFT)
+        frame.pack(pady=6, fill=tk.X)
+        # License存储地址
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='License存储地址').pack(side=tk.LEFT)
+        addr_value = tk.StringVar()
+        addr_value.set('0x8000000')
+        entry_license_addr = tk.Entry(frame, show=None, textvariable=addr_value, width=33)  # TODO 默认值应该时动态获取的
+        entry_license_addr.pack(side=tk.LEFT, padx=37)
+        frame.pack(pady=6, fill=tk.X)
+        # License存储区域大小
+        frame = tk.Frame(parent)
+        tk.Label(frame, text='License存储区域大小').pack(side=tk.LEFT)
+        entry_license_size = tk.Entry(frame, show=None, textvariable=self.__mcu_info.flash_size, width=33)
+        entry_license_size.pack(side=tk.LEFT, padx=12)
+        frame.pack(pady=6, fill=tk.X)
 
     def body(self):  # 绘制主题  TODO 定义几种frame布局，更改布局时，切换frame。需要一个变量存储当前的布局，如果同当前的模式
 
@@ -439,9 +451,9 @@ class OneOsGui:
     def alter_jlink_win(self, parent) -> None:
         """弹出J-Link配置项窗口"""
         parent.title('J-Link设置')
-        center_window(parent, *SIZE_POPUPS)
-        tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=1)  # 左边填充
-        tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=1)  # 右边填充
+        center_window(parent, *(500, 300))
+        tk.Label(parent, bg='red').pack(side=tk.LEFT, fill=tk.Y, padx=1)  # 左边填充
+        tk.Label(parent, bg='red').pack(side=tk.RIGHT, fill=tk.Y, padx=1)  # 右边填充
         self._draw_jlink_configuration(parent)
         # cb_serial_no, cb_interface_type, cb_rate, cb_mcu, \
         # entry_addr, entry_size = self._draw_jlink_configuration(parent)
