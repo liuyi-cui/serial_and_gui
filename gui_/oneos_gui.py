@@ -14,7 +14,9 @@ from utils.utility import is_hex
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
-_active_color = 'gray'  # 激活状态颜色为浅灰色
+_BACKGOUND = 'gainsboro'  # 默认背景色
+_ACTIVE_COLOR = 'green'  # 默认激活状态颜色
+_NORMAL_COLOR = 'black'  # 默认正常状态颜色
 SIZE_POPUPS = (400, 280)  # 弹出窗体大小
 
 
@@ -550,9 +552,9 @@ class OneOsGui:
         mode_menu = tk.Menu(parent, tearoff=0)
 
         # 给菜单对象添加选项
-        mode_menu.add_radiobutton(label='生产模式', activebackground=_active_color,
+        mode_menu.add_radiobutton(label='生产模式', activebackground='gray',
                                   variable=self.__mode_type, value=ModeEnum.PRODUCT.value)
-        mode_menu.add_radiobutton(label='调试模式', activebackground=_active_color,
+        mode_menu.add_radiobutton(label='调试模式', activebackground='gray',
                                   variable=self.__mode_type, value=ModeEnum.DEBUG.value)
         # 将菜单对象放置在父对象上，命名为模式选择
         parent.add_cascade(label='模式选择', menu=mode_menu)
@@ -571,11 +573,11 @@ class OneOsGui:
         def do_detail_config_log():
             self.alter_win(name='log')
 
-        config_menu.add_command(label='串口设置', activebackground=_active_color,
+        config_menu.add_command(label='串口设置', activebackground='gray',
                                     command=do_detail_config_port)
-        config_menu.add_command(label='J-Link设置', activebackground=_active_color,
+        config_menu.add_command(label='J-Link设置', activebackground='gray',
                                     command=do_detail_config_jlink)
-        config_menu.add_command(label='日志设置', activebackground=_active_color,
+        config_menu.add_command(label='日志设置', activebackground='gray',
                                     command=do_detail_config_log)
         parent.add_cascade(label='设置', menu=config_menu)
 
@@ -656,14 +658,21 @@ class OneOsGui:
         # 主界面
         frame = tk.Frame(parent)
         # 界面top
-        frame_top = tk.Frame(frame)
+        frame_top = tk.Frame(frame, bg=_BACKGOUND)
         # 界面top_t
         frame_top_t = tk.Frame(frame_top)
         # 界面top_t_l
         frame_top_t_l = tk.Frame(frame_top_t)
-        # 界面top_t_l_t TODO 读ID和写License的选择和展示
+        # 界面top_t_l_t
         frame_top_t_l_t = tk.Frame(frame_top_t_l)
-        self.draw_frame_top_t_l_t_detail(frame_top_t_l_t)
+        # 界面top_t_l_t_t  TODO 读id和写license的切换按钮
+        frame_top_t_l_t_t = tk.Frame(frame_top_t_l_t, bg='red')
+        self.draw_frame_top_t_l_t_detail(frame_top_t_l_t_t)
+        frame_top_t_l_t_t.pack(side=tk.TOP, fill=tk.X)
+        # 界面top_t_l_t_b  TODO 读id和写license的状态展示
+        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t, bg='green')
+        tk.Label(frame_top_t_l_t_b, text='读id和写license状态展示').pack(side=tk.LEFT)
+        frame_top_t_l_t_b.pack(side=tk.BOTTOM, fill=tk.X)
         frame_top_t_l_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
         # 界面top_t_l_b TODO HID存储文件\Licesen存储文件\UKey状态展示
         frame_top_t_l_b = tk.Frame(frame_top_t_l, bg='turquoise')
@@ -723,24 +732,29 @@ class OneOsGui:
         """
 
         def swith_read_id(event):
-            print('切换工位到读取设备ID')
+            self.__operate_type.set(OperateEnum.HID.value)
+            label_read_id.configure(bg='white', fg=_ACTIVE_COLOR)
+            menu_bar.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
 
-        # 创建占位label
-        tk.Label(parent, text='           ').pack(side=tk.LEFT)
+        def swith_to_license():
+            label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
+            menu_bar.configure(bg='white', fg=_ACTIVE_COLOR)
 
-        # 创建读ID菜单
-        read_id_menu_bar = tk.Menubutton(parent, text='读ID')  # 其实如果没有次级菜单的话，没有必要做成Menubutton，直接使用Label或者button不就好了吗..
-        read_id_menu_bar.bind('<ButtonRelease-1>', swith_read_id)
-        read_id_menu_bar.pack(side=tk.LEFT)
+        # 创建读ID Button
+        label_read_id = tk.Label(parent, text='读ID', bg='white', fg=_ACTIVE_COLOR, width=10, bd=3, padx=3, pady=1)  # TODO 鼠标滑过更改字体
+        label_read_id.bind('<ButtonRelease-1>', swith_read_id)
+        label_read_id.pack(side=tk.LEFT)
 
         # 创建写License菜单
-        menu_bar = tk.Menubutton(parent, text='写License')
+        menu_bar = tk.Menubutton(parent, text='写License', bg=_BACKGOUND, fg=_NORMAL_COLOR)
         # 定义写License子菜单
         license_menu = tk.Menu(menu_bar, tearoff=0)  # 默认不下拉
-        license_menu.add_radiobutton(label='从License文件', activebackground=_active_color,
-                                     variable=self.__operate_type, value=OperateEnum.LICENSE_FILE)
-        license_menu.add_radiobutton(label='从UKey', activebackground=_active_color,
-                                     variable=self.__operate_type, value=OperateEnum.LICENSE_UKEY)
+        license_menu.add_radiobutton(label='从License文件', activebackground='gray',
+                                     variable=self.__operate_type, value=OperateEnum.LICENSE_FILE.value,
+                                     command=swith_to_license)
+        license_menu.add_radiobutton(label='从UKey', activebackground='gray',
+                                     variable=self.__operate_type, value=OperateEnum.LICENSE_UKEY.value,
+                                     command=swith_to_license)
         menu_bar.config(menu=license_menu)
         menu_bar.pack(side=tk.LEFT)
 
