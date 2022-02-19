@@ -526,7 +526,14 @@ class OneOsGui:
     def body(self):  # 绘制主题  TODO 定义几种frame布局，更改布局时，切换frame。需要一个变量存储当前的布局，如果同当前的模式
 
         self.draw_menu(self.window_)  # 绘制菜单栏，固定布局
+        # 绘制生产模式的界面
+        self.frame_product = self.draw_product_frame(self.window_)
+        # 绘制调试模式的界面
+        self.frame_debug = self.draw_debug_frame(self.window_)
+        # 默认展示生产模式的界面
+        self.frame_product.pack(expand=True, fill=tk.BOTH)
 
+    # 以下为菜单栏界面代码
     def draw_menu(self, parent):
         """绘制菜单栏"""
         # 创建父菜单对象
@@ -642,6 +649,106 @@ class OneOsGui:
         parent.title('日志设置')
         center_window(parent, *(400, 180))
         self._draw_log_configuration(parent)  # 日志配置项
+
+    # 以下为生产模式界面代码
+    def draw_product_frame(self, parent):
+        """绘制生产模式界面"""
+        # 主界面
+        frame = tk.Frame(parent)
+        # 界面top
+        frame_top = tk.Frame(frame)
+        # 界面top_t
+        frame_top_t = tk.Frame(frame_top)
+        # 界面top_t_l
+        frame_top_t_l = tk.Frame(frame_top_t)
+        # 界面top_t_l_t TODO 读ID和写License的选择和展示
+        frame_top_t_l_t = tk.Frame(frame_top_t_l)
+        self.draw_frame_top_t_l_t_detail(frame_top_t_l_t)
+        frame_top_t_l_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        # 界面top_t_l_b TODO HID存储文件\Licesen存储文件\UKey状态展示
+        frame_top_t_l_b = tk.Frame(frame_top_t_l, bg='turquoise')
+        tk.Label(frame_top_t_l_b, text='界面top_t_l_b').pack(side=tk.LEFT)
+        frame_top_t_l_b.pack(side=tk.BOTTOM, expand=True, fill=tk.BOTH)
+        frame_top_t_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+        # 界面top_t-r
+        frame_top_t_r = tk.Frame(frame_top_t)
+        # 界面top_t_r_l  TODO 结果展示(序号-设备id-结果)
+        frame_top_t_r_l = tk.Frame(frame_top_t_r, bg='lightseagreen')
+        tk.Label(frame_top_t_r_l, text='界面top_t_r_l').pack(side=tk.TOP)
+        frame_top_t_r_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+        # 界面top_t_r_r
+        frame_top_t_r_r = tk.Frame(frame_top_t_r)
+        # 界面top_t_r_r_t  TODO 开始\停止按钮
+        frame_top_t_r_r_t = tk.Frame(frame_top_t_r_r, bg='lightblue')
+        tk.Label(frame_top_t_r_r_t, text='界面top_t_r_r_t').pack(side=tk.LEFT)
+        frame_top_t_r_r_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        # 界面top_t_r_r_b  TODO 状态展示(成功\失败\停止\已完成\空白)
+        frame_top_t_r_r_b = tk.Frame(frame_top_t_r_r, bg='paleturquoise')
+        tk.Label(frame_top_t_r_r_b, text='界面top_t_r_r_b').pack(side=tk.LEFT)
+        frame_top_t_r_r_b.pack(side=tk.BOTTOM, expand=True, fill=tk.BOTH)
+        frame_top_t_r_r.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+        frame_top_t_r.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+        frame_top_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        # 界面top_b
+        frame_top_b = tk.Frame(frame_top)
+        # 界面top_b_l  TODO 通信方式(串口\J-Link)选择以及配置项展示
+        frame_top_b_l = tk.Frame(frame_top_b, bg='hotpink')
+        tk.Label(frame_top_b_l, text='界面top_b_l').pack(side=tk.TOP)
+        frame_top_b_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+        # 界面top_b_r
+        frame_top_b_r = tk.Frame(frame_top_b)
+        # 界面top_b_r_t  TODO 操作明细日志展示
+        frame_top_b_r_t = tk.Frame(frame_top_b_r, bg='lightseagreen')
+        tk.Label(frame_top_b_r_t, text='界面top_b_r_t').pack(side=tk.LEFT)
+        frame_top_b_r_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        # 界面top_b_r_b  TODO 清楚按钮
+        frame_top_b_r_b = tk.Frame(frame_top_b_r, bg='turquoise')
+        tk.Label(frame_top_b_r_b, text='界面top_b_r_b').pack(side=tk.LEFT)
+        frame_top_b_r_b.pack(side=tk.BOTTOM, expand=True, fill=tk.BOTH)
+        frame_top_b_r.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+        frame_top_b.pack(side=tk.BOTTOM, expand=True, fill=tk.BOTH)
+        frame_top.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        # 界面bottom  TODO 各类信息(模式\工位\串口状态\运行状态)展示
+        frame_bottom = tk.Frame(frame, bg='blue')
+        tk.Label(frame_bottom, text='界面bottom').pack(side=tk.LEFT)
+        frame_bottom.pack(side=tk.BOTTOM, fill=tk.X)
+
+        return frame
+
+    def draw_frame_top_t_l_t_detail(self, parent):
+        """读ID\写License工位选择以及信息展示
+        Menu
+        Label
+        Label
+        """
+
+        def swith_read_id(event):
+            print('切换工位到读取设备ID')
+
+        # 创建占位label
+        tk.Label(parent, text='           ').pack(side=tk.LEFT)
+
+        # 创建读ID菜单
+        read_id_menu_bar = tk.Menubutton(parent, text='读ID')  # 其实如果没有次级菜单的话，没有必要做成Menubutton，直接使用Label或者button不就好了吗..
+        read_id_menu_bar.bind('<ButtonRelease-1>', swith_read_id)
+        read_id_menu_bar.pack(side=tk.LEFT)
+
+        # 创建写License菜单
+        menu_bar = tk.Menubutton(parent, text='写License')
+        # 定义写License子菜单
+        license_menu = tk.Menu(menu_bar, tearoff=0)  # 默认不下拉
+        license_menu.add_radiobutton(label='从License文件', activebackground=_active_color,
+                                     variable=self.__operate_type, value=OperateEnum.LICENSE_FILE)
+        license_menu.add_radiobutton(label='从UKey', activebackground=_active_color,
+                                     variable=self.__operate_type, value=OperateEnum.LICENSE_UKEY)
+        menu_bar.config(menu=license_menu)
+        menu_bar.pack(side=tk.LEFT)
+
+    # 以下为调试模式界面代码
+    def draw_debug_frame(self, parent):
+        """绘制调试模式界面"""
+        frame = tk.Frame(parent, bg='green')
+        return frame
 
     def run(self):
         self.window_.mainloop()
