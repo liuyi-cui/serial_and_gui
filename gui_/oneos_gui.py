@@ -56,13 +56,17 @@ class OneOsGui:
         """定义属性类型"""
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
         self.__operate_type = tk.StringVar()  # 操作工位(读HID/写License-从License文件/写License-从UKey)
+        self.__operate_desc = tk.StringVar()  # 操作工位的描述
+        self.__operate_desc_detail = tk.StringVar()  # 操作工位的详细描述
         self.__conn_type = tk.StringVar()  # 通信方式(串口/J-Link)
         self.temp_mcu_info = ()
 
     def init_values(self):
         """定义属性初始值"""
         self.__mode_type.set('product')  # 默认模式选择为生产模式
-        self.__operate_type.set('hid')  # 默认操作工位为读HID
+        self.__operate_type.set('HID')  # 默认操作工位为读HID
+        self.__operate_desc.set('读设备ID')  # 默认操作工位描述
+        self.__operate_desc_detail.set('从设备读取物理识别码，并保存到本地文件')
         self.__conn_type.set('serial_port')  # 默认通信方式为串口通信
         self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
         self.__jlink_configuration = JLinkConfiguration()  # J-Link通信数据
@@ -666,14 +670,14 @@ class OneOsGui:
         # 界面top_t_l_t
         frame_top_t_l_t = tk.Frame(frame_top_t_l)
         # 界面top_t_l_t_t  TODO 读id和写license的切换按钮
-        frame_top_t_l_t_t = tk.Frame(frame_top_t_l_t, bg='red')
+        frame_top_t_l_t_t = tk.Frame(frame_top_t_l_t, bg=_BACKGOUND)
         self.draw_frame_top_t_l_t_detail(frame_top_t_l_t_t)
         frame_top_t_l_t_t.pack(side=tk.TOP, fill=tk.X)
         # 界面top_t_l_t_b  TODO 读id和写license的状态展示
-        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t, bg='green')
-        tk.Label(frame_top_t_l_t_b, text='读id和写license状态展示').pack(side=tk.LEFT)
-        frame_top_t_l_t_b.pack(side=tk.BOTTOM, fill=tk.X)
-        frame_top_t_l_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t, bg='white')
+        self.draw_frame_topt_l_t_b_detail(frame_top_t_l_t_b)
+        frame_top_t_l_t_b.pack(side=tk.TOP, fill=tk.X)
+        frame_top_t_l_t.pack(side=tk.TOP, fill=tk.X)
         # 界面top_t_l_b TODO HID存储文件\Licesen存储文件\UKey状态展示
         frame_top_t_l_b = tk.Frame(frame_top_t_l, bg='turquoise')
         tk.Label(frame_top_t_l_b, text='界面top_t_l_b').pack(side=tk.LEFT)
@@ -733,10 +737,20 @@ class OneOsGui:
 
         def swith_read_id(event):
             self.__operate_type.set(OperateEnum.HID.value)
+            self.__operate_desc.set('读设备ID')
+            self.__operate_desc_detail.set('从设备读取物理识别码，并保存到本地文件')
             label_read_id.configure(bg='white', fg=_ACTIVE_COLOR)
             menu_bar.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
 
-        def swith_to_license():
+        def swith_to_license_file():
+            self.__operate_desc.set('写License-从License文件')
+            self.__operate_desc_detail.set('从本地文件获取License，并写入硬件设备')
+            label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
+            menu_bar.configure(bg='white', fg=_ACTIVE_COLOR)
+
+        def swith_to_license_ukey():
+            self.__operate_desc.set('写License-从UKey')
+            self.__operate_desc_detail.set('从UKey获取License，并写入硬件设备')
             label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
             menu_bar.configure(bg='white', fg=_ACTIVE_COLOR)
 
@@ -751,12 +765,27 @@ class OneOsGui:
         license_menu = tk.Menu(menu_bar, tearoff=0)  # 默认不下拉
         license_menu.add_radiobutton(label='从License文件', activebackground='gray',
                                      variable=self.__operate_type, value=OperateEnum.LICENSE_FILE.value,
-                                     command=swith_to_license)
+                                     command=swith_to_license_file)
         license_menu.add_radiobutton(label='从UKey', activebackground='gray',
                                      variable=self.__operate_type, value=OperateEnum.LICENSE_UKEY.value,
-                                     command=swith_to_license)
+                                     command=swith_to_license_ukey)
         menu_bar.config(menu=license_menu)
         menu_bar.pack(side=tk.LEFT)
+
+    def draw_frame_topt_l_t_b_detail(self, parent):
+        """
+        根据当前的工位，展示相应的信息
+        """
+        # 黑色加粗大字
+        frame_top = tk.Frame(parent, bg='white')
+        tk.Label(frame_top, textvariable=self.__operate_desc, font=('微软雅黑', 12),
+                 padx=15, pady=8, bg='white').pack(side=tk.LEFT)
+        frame_top.pack(side=tk.TOP, expand=True, fill=tk.X)
+        # 灰色小字
+        frame_bottom = tk.Frame(parent, bg='white')
+        tk.Label(frame_bottom, textvariable=self.__operate_desc_detail, fg='gray',
+                 padx=15, font=('微软雅黑', 9), bg='white').pack(side=tk.LEFT)
+        frame_bottom.pack(side=tk.TOP, expand=True, fill=tk.X)
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
