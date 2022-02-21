@@ -357,6 +357,56 @@ class OneOsGui:
 
         return inner
 
+    def alter_ukey_connect(self, parent):
+        """弹出UKey连接窗口"""
+        def inner(event):
+            frame = tk.Toplevel()
+            frame.transient(parent)
+            frame.title('UKey连接...')
+            center_window(frame, *(400, 120))
+            # ukey选择
+            frame_ukey = tk.Frame(frame)
+            ## 具体控件代码
+            ### UKey选择
+            tk.Label(frame_ukey, text='UKey选择', padx=30, pady=10).pack(side=tk.LEFT, fill=tk.Y)
+            cb_ukey = ttk.Combobox(frame_ukey, values=('COM1', 'COM2'), width=30)
+            cb_ukey.pack(side=tk.LEFT)
+            frame_ukey.pack(side=tk.TOP, fill=tk.X)
+            # 输入pin码
+            frame_pin = tk.Frame(frame)
+            ## 具体控件代码
+            ### 输入PIN码
+            tk.Label(frame_pin, text='PIN码     ', padx=30).pack(side=tk.LEFT, fill=tk.Y)
+            entry_pin = tk.Entry(frame_pin, show='*', width=33)
+            entry_pin.pack(side=tk.LEFT)
+            frame_pin.pack(side=tk.TOP, expand=True, fill=tk.X)
+            # 确定\取消按钮
+            frame_confirm = tk.Frame(frame)
+
+            def confirm():
+                """UKey界面确定按钮
+                获取用户输入，同UKey建立连接
+                """
+                ukey_name = cb_ukey.get()
+                print(f'ukey name: {ukey_name}')  # TODO 尝试建立UKey连接，连接失败的话给出相应警告
+                pin_value = entry_pin.get()
+                print(f'pin value: {pin_value}')
+                frame.destroy()
+
+            def cancel():
+                print('取消按钮')
+                frame.destroy()
+
+            tk.Label(frame_confirm).pack(side=tk.LEFT, padx=60)
+            tk.Button(frame_confirm, text='确定', bg='silver', width=6, height=1,
+                      command=confirm).pack(side=tk.LEFT)
+            tk.Label(frame_confirm).pack(side=tk.LEFT, padx=35)
+            tk.Button(frame_confirm, text='取消', bg='silver', width=6, height=1,
+                      command=cancel).pack(side=tk.LEFT)
+            ## 具体控件代码
+            frame_confirm.pack(side=tk.TOP, fill=tk.X)
+        return inner
+
     def _draw_jlink_configuration(self, parent):  # 给定界面，绘制jlink配置项 TODO 还可以添加字体大小颜色、padx、pady等参数
         """给定界面，绘制jlink通信配置项"""
         # 连接端口
@@ -894,8 +944,10 @@ class OneOsGui:
         ## 灰色小字
         frame_2 = tk.Frame(frame_license_ukey_display, bg='white')
         ## TODO 此处需要添加一个图片(表示USB)
-        tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
-                 padx=15, font=('微软雅黑', 9), bg='white').pack(side=tk.LEFT)  # TODO 此处需要绑定UKey pin的验证弹窗
+        label_ukey = tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
+                 padx=15, font=('微软雅黑', 9), bg='white')  # TODO 此处需要绑定UKey pin的验证弹窗
+        label_ukey.pack(side=tk.LEFT)
+        label_ukey.bind('<Button-1>', self.alter_ukey_connect(frame_license_ukey_display))
         frame_2.pack(side=tk.TOP, expand=True, fill=tk.X)
         ## 底层占位
         frame_place_holder_3 = tk.Frame(frame_license_ukey_display, bg='white')
