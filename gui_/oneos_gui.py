@@ -9,7 +9,9 @@ from tkinter import filedialog
 
 from serial_.pyboard import PyBoard
 from utils.entities import ModeEnum, OperateEnum, ConnEnum  # 操作方式、工位、通信方式
-from utils.entities import SerialPortConfiguration, JLinkConfiguration, LogConfiguration, MCUInfo  # 串口配置项，JLink配置项，日志配置项，MCU信息
+from utils.entities import SerialPortConfiguration, JLinkConfiguration, LogConfiguration, MCUInfo, \
+    UKeyInfo# 串口配置项，JLink配置项，日志配置项，MCU信息
+from utils.file_utils import check_file_suffix
 from utils.utility import is_hex
 
 _font_s = ('微软雅黑', 8)  # 字体
@@ -66,12 +68,15 @@ class OneOsGui:
         self.__mode_type.set('product')  # 默认模式选择为生产模式
         self.__operate_type.set('HID')  # 默认操作工位为读HID
         self.__operate_desc.set('读设备ID')  # 默认操作工位描述
-        self.__operate_desc_detail.set('从设备读取物理识别码，并保存到本地文件')
+        self.__operate_desc_detail.set('  从设备读取物理识别码，并保存到本地文件')
         self.__conn_type.set('serial_port')  # 默认通信方式为串口通信
         self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
         self.__jlink_configuration = JLinkConfiguration()  # J-Link通信数据
         self.__log_configuration = LogConfiguration()  # 日志配置数据
+        self.__ukey_info = UKeyInfo()  # UKey连接信息
         self.__mcu_info = MCUInfo()  # mcu相关信息
+        self.__filepath_hid = tk.StringVar()  # HID存储文件路径
+        self.__filepath_license = tk.StringVar()  # License存储文件路径
 
     def port_configuration_confirm(self, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller, parent=None):
         """
@@ -674,13 +679,13 @@ class OneOsGui:
         self.draw_frame_top_t_l_t_detail(frame_top_t_l_t_t)
         frame_top_t_l_t_t.pack(side=tk.TOP, fill=tk.X)
         # 界面top_t_l_t_b  TODO 读id和写license的状态展示
-        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t, bg='white')
+        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t, bg=_BACKGOUND)
         self.draw_frame_topt_l_t_b_detail(frame_top_t_l_t_b)
         frame_top_t_l_t_b.pack(side=tk.TOP, fill=tk.X)
         frame_top_t_l_t.pack(side=tk.TOP, fill=tk.X)
         # 界面top_t_l_b TODO HID存储文件\Licesen存储文件\UKey状态展示
         frame_top_t_l_b = tk.Frame(frame_top_t_l, bg='turquoise')
-        tk.Label(frame_top_t_l_b, text='界面top_t_l_b').pack(side=tk.LEFT)
+        self.frame_hid_display, self.frame_license_file_display, self.frame_license_ukey_display = self.draw_frame_operate(frame_top_t_l_b)
         frame_top_t_l_b.pack(side=tk.BOTTOM, expand=True, fill=tk.BOTH)
         frame_top_t_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
         # 界面top_t-r
@@ -738,21 +743,30 @@ class OneOsGui:
         def swith_read_id(event):
             self.__operate_type.set(OperateEnum.HID.value)
             self.__operate_desc.set('读设备ID')
-            self.__operate_desc_detail.set('从设备读取物理识别码，并保存到本地文件')
+            self.__operate_desc_detail.set('  从设备读取物理识别码，并保存到本地文件')
             label_read_id.configure(bg='white', fg=_ACTIVE_COLOR)
             menu_bar.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
+            self.frame_license_file_display.pack_forget()
+            self.frame_license_ukey_display.pack_forget()
+            self.frame_hid_display.pack(side=tk.TOP, fill=tk.X)
 
         def swith_to_license_file():
             self.__operate_desc.set('写License-从License文件')
-            self.__operate_desc_detail.set('从本地文件获取License，并写入硬件设备')
+            self.__operate_desc_detail.set('  从本地文件获取License，并写入硬件设备')
             label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
             menu_bar.configure(bg='white', fg=_ACTIVE_COLOR)
+            self.frame_hid_display.pack_forget()
+            self.frame_license_ukey_display.pack_forget()
+            self.frame_license_file_display.pack(side=tk.TOP, fill=tk.X)
 
         def swith_to_license_ukey():
             self.__operate_desc.set('写License-从UKey')
-            self.__operate_desc_detail.set('从UKey获取License，并写入硬件设备')
+            self.__operate_desc_detail.set('  从UKey获取License，并写入硬件设备')
             label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
             menu_bar.configure(bg='white', fg=_ACTIVE_COLOR)
+            self.frame_hid_display.pack_forget()
+            self.frame_license_file_display.pack_forget()
+            self.frame_license_ukey_display.pack(side=tk.TOP, fill=tk.X)
 
         # 创建读ID Button
         label_read_id = tk.Label(parent, text='读ID', bg='white', fg=_ACTIVE_COLOR, width=10, bd=3, padx=3, pady=1)  # TODO 鼠标滑过更改字体
@@ -786,6 +800,109 @@ class OneOsGui:
         tk.Label(frame_bottom, textvariable=self.__operate_desc_detail, fg='gray',
                  padx=15, font=('微软雅黑', 9), bg='white').pack(side=tk.LEFT)
         frame_bottom.pack(side=tk.TOP, expand=True, fill=tk.X)
+        # 底层占位
+        frame_placeholder = tk.Frame(parent, bg='white')
+        tk.Label(frame_placeholder, text=' ', bg='white').pack()
+        frame_placeholder.pack(side=tk.TOP, expand=True, fill=tk.X)
+
+    def draw_frame_operate(self, parent):
+        """绘制读HID配置项、license_file配置项、license_ukey配置项
+        创建三个frame，根据operte_type属性进行pack和pack_forget
+        """
+        # 界面1：读hid的配置项
+        frame_hid_display = tk.Frame(parent, bg='white')
+        ## 占位
+        frame_place_holder_1 = tk.Frame(frame_hid_display, bg='white')
+        tk.Label(frame_place_holder_1, pady=10, text=' ', bg='white').pack()
+        frame_place_holder_1.pack(side=tk.TOP, expand=True, fill=tk.X)
+        ## 描述文字
+        frame_1 = tk.Frame(frame_hid_display, bg='white')
+        tk.Label(frame_1, text='保存设备ID到文件...', font=('微软雅黑', 12), bg='white',
+                 pady=5, padx=15).pack(side=tk.LEFT, fill=tk.X)
+        frame_1.pack(side=tk.TOP, expand=True, fill=tk.X)
+        ## 文本选择框
+        frame_2 = tk.Frame(frame_hid_display, bg='white')
+        tk.Label(frame_2, text='    ', bg='white').pack(side=tk.LEFT)
+        filepath_entry = tk.Entry(frame_2, textvariable=self.__filepath_hid, width=35)  # TODO 创建一个对象属性记录这些相关信息
+        filepath_entry.pack(side=tk.LEFT)
+        ## 按钮
+        def record_filepath_hid():
+            """
+            点击选择按钮后，触发方法
+            1 校验选择文件是否合法
+            2 记录选择文件
+            """
+            filepath = filedialog.askopenfilename()  # 打开一个已经存在的文件
+            if filepath != '':
+                if check_file_suffix(filepath):  # 属于excel文件
+                    self.__filepath_hid.set(filepath)
+                else:
+                    tkinter.messagebox.showwarning(title='Warning',
+                                               message='请选择Excel类型文件')
+
+        tk.Label(frame_2, text='  ', bg='white').pack(side=tk.LEFT)
+        tk.Button(frame_2, text='选择', width=10, bg='#918B8B', command=record_filepath_hid).pack(side=tk.LEFT)
+        ### 填充文本选择框以及按钮
+        frame_2.pack(side=tk.TOP, fill=tk.X)
+        frame_place_holder_1_2 = tk.Frame(frame_hid_display, bg='white')
+        tk.Label(frame_place_holder_1_2, pady=10, text=' ', bg='white').pack(side=tk.TOP)
+        tk.Label(frame_place_holder_1_2, pady=10, text=' ', bg='white').pack(side=tk.TOP)
+        frame_place_holder_1_2.pack(side=tk.TOP, expand=True, fill=tk.X)
+        frame_hid_display.pack(side=tk.TOP, fill=tk.X)
+
+        # 界面2：license_file写license的配置项
+        frame_license_file_display = tk.Frame(parent)
+        ## 占位
+        frame_place_holder_2 = tk.Frame(frame_license_file_display, bg='white')
+        tk.Label(frame_place_holder_2, pady=10, text=' ', bg='white').pack()
+        frame_place_holder_2.pack(side=tk.TOP, expand=True, fill=tk.X)
+        ## 描述文字  TODO 此处命名为frame_1，会覆盖掉读hid界面的frame_1吗？需要测试验证
+        frame_1 = tk.Frame(frame_license_file_display, bg='white')
+        tk.Label(frame_1, text='选择本地License文件...', font=('微软雅黑', 12), bg='white',
+                 pady=5, padx=15).pack(side=tk.LEFT, fill=tk.X)
+        frame_1.pack(side=tk.TOP, expand=True, fill=tk.X)
+        ## License文件选择框
+        frame_2 = tk.Frame(frame_license_file_display, bg='white')
+        tk.Label(frame_2, text='    ', bg='white').pack(side=tk.LEFT)
+        filepath_entry = tk.Entry(frame_2, textvariable=self.__filepath_license, width=35)
+        filepath_entry.pack(side=tk.LEFT)
+        ## 按钮
+        def record_filepath_license():
+            filepath = filedialog.askopenfilename()
+            if filepath != '':
+                if check_file_suffix(filepath):
+                    self.__filepath_license.set(filepath)
+                else:
+                    tk.messagebox.showwarning(title='Warning',
+                                              message='License存储文件为Excel类型文件')
+
+        tk.Label(frame_2, text='  ', bg='white').pack(side=tk.LEFT)
+        tk.Button(frame_2, text='选择', width=10, bg='#918B8B', command=record_filepath_license).pack(side=tk.LEFT)
+        frame_2.pack(side=tk.TOP, fill=tk.X)
+        frame_place_holder_2_2 = tk.Frame(frame_license_file_display, bg='white')
+        tk.Label(frame_place_holder_2_2, pady=10, text=' ', bg='white').pack(side=tk.TOP)
+        tk.Label(frame_place_holder_2_2, pady=10, text=' ', bg='white').pack(side=tk.TOP)
+        frame_place_holder_2_2.pack(side=tk.TOP, expand=True, fill=tk.X)
+
+        # 界面3：ukey写license的配置项
+        frame_license_ukey_display = tk.Frame(parent)
+        ## ukey连接状态信息
+        frame_1 = tk.Frame(frame_license_ukey_display, bg='white')
+        tk.Label(frame_1, textvariable=self.__ukey_info.desc, font=('微软雅黑', 12),
+                 padx=15, pady=18, bg='white').pack(side=tk.LEFT)
+        frame_1.pack(side=tk.TOP, expand=True, fill=tk.X)
+        ## 灰色小字
+        frame_2 = tk.Frame(frame_license_ukey_display, bg='white')
+        ## TODO 此处需要添加一个图片(表示USB)
+        tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
+                 padx=15, font=('微软雅黑', 9), bg='white').pack(side=tk.LEFT)  # TODO 此处需要绑定UKey pin的验证弹窗
+        frame_2.pack(side=tk.TOP, expand=True, fill=tk.X)
+        ## 底层占位
+        frame_place_holder_3 = tk.Frame(frame_license_ukey_display, bg='white')
+        tk.Label(frame_place_holder_3, text=' ', bg='white').pack()
+        frame_place_holder_3.pack(side=tk.TOP, expand=True, fill=tk.X)
+
+        return frame_hid_display, frame_license_file_display, frame_license_ukey_display
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
