@@ -190,12 +190,12 @@ class OneOsGui:
             parent.destroy()
         return inner
 
-    def _draw_serial_port_configuration(self, parent):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小、padx、pady等参数
+    def _draw_serial_port_configuration(self, parent, width=35, bg='SystemButtonFace'):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小、padx、pady等参数
         """给定界面，绘制串口通信配置项"""
         # 串口号
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='串口号').pack(side=tk.LEFT, padx=10)
-        cb_port = ttk.Combobox(frame, value=[self.__serial_port_configuration.port], width=35,
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='串口号', bg=bg).pack(side=tk.LEFT, padx=10)
+        cb_port = ttk.Combobox(frame, value=[self.__serial_port_configuration.port], width=width,
                      state='readonly')
         if self.__serial_port_configuration.port != '':
             cb_port.current(0)
@@ -215,50 +215,50 @@ class OneOsGui:
                     baudrate_values.pop(-1)
                 cb_baudrate.configure(state='readonly', value=baudrate_values)
 
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='波特率').pack(side=tk.LEFT, padx=10)
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='波特率', bg=bg).pack(side=tk.LEFT, padx=10)
         baudrate_values = ['9600', '19200', '38400', '57600', '115200', 'custom']
         if self.__serial_port_configuration.baud_rate not in baudrate_values:  # 如果手动输入的波特率不在该列表内后面会报错
             baudrate_values.insert(0, self.__serial_port_configuration.baud_rate)
         cb_baudrate = ttk.Combobox(frame, value=baudrate_values,
-                                   width=35, state='readonly')
+                                   width=width, state='readonly')
         cb_baudrate.bind('<<ComboboxSelected>>', update_cb_baudrate)
         cb_baudrate.current(baudrate_values.index(self.__serial_port_configuration.baud_rate))
         cb_baudrate.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 数据位
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='数据位').pack(side=tk.LEFT, padx=10)
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='数据位', bg=bg).pack(side=tk.LEFT, padx=10)
         data_digit_values = ['5', '6', '7', '8']
         cb_data = ttk.Combobox(frame, value=data_digit_values,
-                               width=35, state='readonly')
+                               width=width, state='readonly')
         cb_data.current(data_digit_values.index(self.__serial_port_configuration.data_digit))
         cb_data.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 校验位
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='校验位').pack(side=tk.LEFT, padx=10)
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='校验位', bg=bg).pack(side=tk.LEFT, padx=10)
         check_digit_values = ['None', 'Even', 'Odd', 'Mark', 'Space']
         cb_check = ttk.Combobox(frame, value=check_digit_values,
-                                width=35, state='readonly')
+                                width=width, state='readonly')
         cb_check.current(check_digit_values.index(self.__serial_port_configuration.check_digit))
         cb_check.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 停止位
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='停止位').pack(side=tk.LEFT, padx=10)
-        cb_stop = ttk.Combobox(frame, value=['1', ], width=35, state='readonly')
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='停止位', bg=bg).pack(side=tk.LEFT, padx=10)
+        cb_stop = ttk.Combobox(frame, value=['1', ], width=width, state='readonly')
         cb_stop.current(0)
         cb_stop.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 流控
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='流   控').pack(side=tk.LEFT, padx=10)
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='流   控', bg=bg).pack(side=tk.LEFT, padx=10)
         stream_controller_values = ['None', 'RTS/CTS', 'XON/XOFF']
         cb_stream_controller = ttk.Combobox(frame, value=stream_controller_values,
-                                            width=35, state='readonly')
+                                            width=width, state='readonly')
         cb_stream_controller.current(stream_controller_values.index(self.__serial_port_configuration.stream_controller))
-        cb_stream_controller.pack(pady=6)
+        cb_stream_controller.pack(pady=6, padx=10)
         frame.pack(pady=6)
         return cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller
 
@@ -727,18 +727,18 @@ class OneOsGui:
         # 界面top_t_l_t
         frame_top_t_l_t = tk.Frame(frame_top_t_l)
         # 界面top_t_l_t_t  TODO 读id和写license的切换按钮
-        frame_top_t_l_t_t = tk.Frame(frame_top_t_l_t, bg=_BACKGOUND)
+        frame_top_t_l_t_t = tk.Frame(frame_top_t_l_t)
         self.draw_frame_top_t_l_t_detail(frame_top_t_l_t_t)
-        frame_top_t_l_t_t.pack(side=tk.TOP, fill=tk.X)
+        frame_top_t_l_t_t.pack(side=tk.TOP, fill=tk.X, padx=10)
         # 界面top_t_l_t_b  TODO 读id和写license的状态展示
-        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t, bg=_BACKGOUND)
+        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t)
         self.draw_frame_topt_l_t_b_detail(frame_top_t_l_t_b)
-        frame_top_t_l_t_b.pack(side=tk.TOP, fill=tk.X)
+        frame_top_t_l_t_b.pack(side=tk.TOP, fill=tk.X, pady=4, padx=10)
         frame_top_t_l_t.pack(side=tk.TOP, fill=tk.X)
         # 界面top_t_l_b TODO HID存储文件\Licesen存储文件\UKey状态展示
-        frame_top_t_l_b = tk.Frame(frame_top_t_l, bg='turquoise')
+        frame_top_t_l_b = tk.Frame(frame_top_t_l)
         self.frame_hid_display, self.frame_license_file_display, self.frame_license_ukey_display = self.draw_frame_operate(frame_top_t_l_b)
-        frame_top_t_l_b.pack(side=tk.BOTTOM, fill=tk.BOTH)
+        frame_top_t_l_b.pack(side=tk.BOTTOM, fill=tk.BOTH, padx=10)
         frame_top_t_l.pack(side=tk.LEFT, fill=tk.BOTH)
         # 界面top_t-r
         frame_top_t_r = tk.Frame(frame_top_t)
@@ -762,9 +762,9 @@ class OneOsGui:
         # 界面top_b
         frame_top_b = tk.Frame(frame_top)
         # 界面top_b_l  TODO 通信方式(串口\J-Link)选择以及配置项展示
-        frame_top_b_l = tk.Frame(frame_top_b, bg='hotpink')
+        frame_top_b_l = tk.Frame(frame_top_b, bg='white')
         self.draw_frame_connected_type(frame_top_b_l)
-        frame_top_b_l.pack(side=tk.LEFT, fill=tk.BOTH)
+        frame_top_b_l.pack(side=tk.LEFT, fill=tk.BOTH, pady=20, padx=10)
         # 界面top_b_r
         frame_top_b_r = tk.Frame(frame_top_b)
         # 界面top_b_r_t  TODO 操作明细日志展示
@@ -854,7 +854,7 @@ class OneOsGui:
         # 黑色加粗大字
         frame_top = tk.Frame(parent, bg='white')
         tk.Label(frame_top, textvariable=self.__operate_desc, font=('微软雅黑', 12),
-                 padx=15, pady=8, bg='white').pack(side=tk.LEFT)
+                 padx=15, bg='white').pack(side=tk.LEFT, pady=16)
         frame_top.pack(side=tk.TOP, expand=True, fill=tk.X)
         # 灰色小字
         frame_bottom = tk.Frame(parent, bg='white')
@@ -874,18 +874,17 @@ class OneOsGui:
         frame_hid_display = tk.Frame(parent, bg='white')
         ## 占位
         frame_place_holder_1 = tk.Frame(frame_hid_display, bg='white')
-        tk.Label(frame_place_holder_1, pady=10, text=' ', bg='white').pack()
+        tk.Label(frame_place_holder_1, pady=20, text=' ', bg='white').pack()
         frame_place_holder_1.pack(side=tk.TOP, expand=True, fill=tk.X)
         ## 描述文字
         frame_1 = tk.Frame(frame_hid_display, bg='white')
         tk.Label(frame_1, text='保存设备ID到文件...', font=('微软雅黑', 12), bg='white',
-                 pady=5, padx=15).pack(side=tk.LEFT, fill=tk.X)
+                 padx=15).pack(anchor='nw')
         frame_1.pack(side=tk.TOP, expand=True, fill=tk.X)
         ## 文本选择框
         frame_2 = tk.Frame(frame_hid_display, bg='white')
-        tk.Label(frame_2, text='    ', bg='white').pack(side=tk.LEFT)
         filepath_entry = tk.Entry(frame_2, textvariable=self.__filepath_hid, width=20)  # TODO 创建一个对象属性记录这些相关信息
-        filepath_entry.pack(side=tk.LEFT)
+        filepath_entry.pack(side=tk.LEFT, padx=18, pady=18)
         ## 按钮
         def record_filepath_hid():
             """
@@ -901,14 +900,10 @@ class OneOsGui:
                     tkinter.messagebox.showwarning(title='Warning',
                                                message='请选择Excel类型文件')
 
-        tk.Label(frame_2, text='  ', bg='white').pack(side=tk.LEFT)
-        tk.Button(frame_2, text='选择', width=5, bg='#918B8B', command=record_filepath_hid).pack(side=tk.LEFT)
+        tk.Button(frame_2, text='选择', width=5, bg='#918B8B', command=record_filepath_hid).pack(side=tk.LEFT,
+                                                                                               padx=6)
         ### 填充文本选择框以及按钮
         frame_2.pack(side=tk.TOP, fill=tk.X)
-        frame_place_holder_1_2 = tk.Frame(frame_hid_display, bg='white')
-        tk.Label(frame_place_holder_1_2, pady=10, text=' ', bg='white').pack(side=tk.TOP)
-        tk.Label(frame_place_holder_1_2, pady=10, text=' ', bg='white').pack(side=tk.TOP)
-        frame_place_holder_1_2.pack(side=tk.TOP, expand=True, fill=tk.X)
         frame_hid_display.pack(side=tk.TOP, fill=tk.X)
 
         # 界面2：license_file写license的配置项
@@ -1080,8 +1075,44 @@ class OneOsGui:
 
     # 通信方式(串口\J-Link)展示以及配置界面
     def draw_frame_connected_type(self, parent):
-        pass
+        # 两个按钮的frame
+        frame_1 = tk.Frame(parent)
 
+        def swith_to_port_conn(event):
+            """点击串口按钮"""
+            print('更新为串口通信')
+            self.__conn_type.swith_to_port()  # 更新为串口通信
+            label_port.configure(fg=_ACTIVE_COLOR, bg='white')
+            label_jlink.configure(fg='gray', bg=_BACKGOUND)
+
+        def swith_to_jlink_conn(event):
+            """点击J-Link按钮"""
+            print('更新为jlink通信')
+            self.__conn_type.swith_to_jlink()
+            label_jlink.configure(fg=_ACTIVE_COLOR, bg='white')
+            label_port.configure(fg='gray', bg=_BACKGOUND)
+
+        label_port = tk.Label(frame_1, text='串口', bg='white', fg=_ACTIVE_COLOR,
+                             width=10, bd=3, padx=3, pady=1)
+        label_port.bind('<ButtonRelease-1>', swith_to_port_conn)
+        label_port.pack(side=tk.LEFT)
+
+        label_jlink = tk.Label(frame_1, text='J-Link', bg=_BACKGOUND, fg='gray',
+                              width=10, bd=3, padx=3, pady=1)
+        label_jlink.bind('<ButtonRelease-1>', swith_to_jlink_conn)
+        label_jlink.pack(side=tk.LEFT)
+
+        frame_1.pack(side=tk.TOP, fill=tk.X)
+
+        # 展示以及配置项的frame
+        frame_2 = tk.Frame(parent, bg='white')
+        ## 描述信息
+        tk.Label(frame_2, textvariable=self.__conn_type.conn_type, font=('微软雅黑', 12),
+                 bg='white').pack(padx=12, pady=20, anchor='nw')
+        frame_2.pack(side=tk.TOP, fill=tk.BOTH)
+        ## 配置信息
+        cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
+        self._draw_serial_port_configuration(frame_2, width=22, bg='white')  # TODO 为了保证一处配置，各个地方的信息保持同步，则需要将这些控件作为属性存储起来，然后调用方法同步更新
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
