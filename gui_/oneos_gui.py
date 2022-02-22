@@ -749,7 +749,7 @@ class OneOsGui:
         frame_top_t_r_r = tk.Frame(frame_top_t_r)
         # 界面top_t_r_r_t  TODO 开始\停止按钮
         frame_top_t_r_r_t = tk.Frame(frame_top_t_r_r, bg='lightblue')
-        tk.Label(frame_top_t_r_r_t, text='界面top_t_r_r_t').pack(side=tk.LEFT)
+        self.draw_start_button(frame_top_t_r_r_t)
         frame_top_t_r_r_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
         # 界面top_t_r_r_b  TODO 状态展示(成功\失败\停止\已完成\空白)
         frame_top_t_r_r_b = tk.Frame(frame_top_t_r_r, bg='paleturquoise')
@@ -1042,6 +1042,29 @@ class OneOsGui:
                 tree_2.insert('', idx, values=content)
         tree_2.pack()
         return frame_hid_ret_display, frame_license_ret_display
+
+    def draw_start_button(self, parent):
+        """绘制开始\停止按钮
+        TODO 通信逻辑部分从此处开始
+        """
+        frame = tk.Frame(parent)
+        button_text = tk.StringVar()
+        button_text.set('开  始')
+
+        def start():
+            """点击开始按钮的业务流程"""
+            if button_text.get() == '开  始':  # TODO 继续往下写实际的业务逻辑
+                button_text.set('停  止')
+                btn_start.configure(fg='red')
+            else:
+                button_text.set('开  始')
+                btn_start.configure(fg='darkgreen')
+
+        btn_start = tk.Button(frame, textvariable=button_text, font=('微软雅黑', 12, 'bold'), fg='darkgreen', bg='lightgrey',
+                  width=10, height=1, command=start)
+        btn_start.pack(side=tk.LEFT, pady=20, padx=20)
+
+        frame.pack(side=tk.TOP, fill=tk.X)
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
