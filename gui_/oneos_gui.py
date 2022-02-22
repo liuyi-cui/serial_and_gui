@@ -753,7 +753,7 @@ class OneOsGui:
         frame_top_t_r_r_t.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
         # 界面top_t_r_r_b  TODO 状态展示(成功\失败\停止\已完成\空白)
         frame_top_t_r_r_b = tk.Frame(frame_top_t_r_r, bg='paleturquoise')
-        tk.Label(frame_top_t_r_r_b, text='界面top_t_r_r_b').pack(side=tk.LEFT)
+        self.frame_statistic = self.draw_frame_statistic(frame_top_t_r_r_b)
         frame_top_t_r_r_b.pack(side=tk.BOTTOM, expand=True, fill=tk.BOTH)
         frame_top_t_r_r.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
         frame_top_t_r.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
@@ -1065,6 +1065,17 @@ class OneOsGui:
         btn_start.pack(side=tk.LEFT, pady=20, padx=20)
 
         frame.pack(side=tk.TOP, fill=tk.X)
+
+    def draw_frame_statistic(self, parent):
+        # 执行结果信息展示界面
+        text_shower = tk.Text(parent, width=10, height=2, font=('微软雅黑', 24))
+        text_shower.tag_config('success', foreground='green', justify='center', spacing1=20)  # 成功
+        text_shower.tag_config('confirm', foreground='seagreen', jutify='center', spacing1=20)  # 已完成
+        text_shower.tag_config('fail', foreground='red', jutify='center', spacing1=20)  # 失败
+        text_shower.tag_config('stop', foreground='blue', jutify='center', spacing1=20)  # 停止
+        text_shower.insert(1.0, '成 功', 'success')
+        text_shower.pack()
+        return text_shower
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
