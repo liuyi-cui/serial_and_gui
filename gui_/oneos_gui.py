@@ -274,9 +274,11 @@ class OneOsGui:
             frame_bottom.pack(side=tk.BOTTOM, fill=tk.X)
             columns = ('Manufacturer', 'Device', 'Core', 'NumCores', 'Flash Size', 'RAM Size')  # 定义列名称
             displaycolumns = columns  # 表示哪些列可以显示，以及显示顺序。'#all'表示全部显示
-
+            sb = tk.Scrollbar(frame_top, width=32)
+            sb.pack(side=tk.RIGHT, fill=tk.Y)
             tree = ttk.Treeview(frame_top, columns=columns, displaycolumns=displaycolumns,
-                                show='headings')  # 创建treeview对象
+                                show='headings', yscrollcommand=sb.set)  # 创建treeview对象
+            sb.config(command=tree.yview)
             # 设置表格文字居中，以及表格宽度
             for column in columns:
                 tree.column(column, anchor='center', width=100, minwidth=100)
@@ -331,9 +333,8 @@ class OneOsGui:
                          'Flash Size': '1024 KB', 'RAM Size': '96 KB'},]
             for idx, content in enumerate(contents):
                 tree.insert('', idx, values=tuple(content.values()))
-            sb = tk.Scrollbar(frame_top, width=32)
-            sb.pack(side=tk.RIGHT, fill=tk.Y)
-            sb.config(command=tree.yview)
+
+
             tree.pack(side=tk.LEFT, fill=tk.Y)
 
             # 获取当前点击的行
@@ -742,7 +743,7 @@ class OneOsGui:
         frame_top_t_r = tk.Frame(frame_top_t)
         # 界面top_t_r_l  TODO 结果展示(序号-设备id-结果)
         frame_top_t_r_l = tk.Frame(frame_top_t_r, bg='lightseagreen')
-        tk.Label(frame_top_t_r_l, text='界面top_t_r_l').pack(side=tk.TOP)
+        self.frame_hid_ret_display, self.frame_license_ret_display = self.draw_frame_ret(frame_top_t_r_l)
         frame_top_t_r_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
         # 界面top_t_r_r
         frame_top_t_r_r = tk.Frame(frame_top_t_r)
@@ -799,8 +800,14 @@ class OneOsGui:
             self.frame_license_file_display.pack_forget()
             self.frame_license_ukey_display.pack_forget()
             self.frame_hid_display.pack(side=tk.TOP, fill=tk.X)
+            # 切换统计界面
+            self.frame_license_ret_display.pack_forget()
+            self.frame_hid_ret_display.pack()
 
         def swith_to_license_file():
+            if self.__operate_desc.get() == '读设备ID':  # 表示从读ID界面切换过来
+                self.frame_hid_ret_display.pack_forget()
+                self.frame_license_ret_display.pack()
             self.__operate_desc.set('写License-从License文件')
             self.__operate_desc_detail.set('  从本地文件获取License，并写入硬件设备')
             label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
@@ -810,6 +817,9 @@ class OneOsGui:
             self.frame_license_file_display.pack(side=tk.TOP, fill=tk.X)
 
         def swith_to_license_ukey():
+            if self.__operate_desc.get() == '读设备ID':  # 表示从读ID界面切换过来
+                self.frame_hid_ret_display.pack_forget()
+                self.frame_license_ret_display.pack()
             self.__operate_desc.set('写License-从UKey')
             self.__operate_desc_detail.set('  从UKey获取License，并写入硬件设备')
             label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
@@ -955,6 +965,83 @@ class OneOsGui:
         frame_place_holder_3.pack(side=tk.TOP, expand=True, fill=tk.X)
 
         return frame_hid_display, frame_license_file_display, frame_license_ukey_display
+
+    def draw_frame_ret(self, parent):
+        """绘制结果展示界面
+        创建两个frame，根据operate_type进行pack和pack_forget()
+        """
+        # hid界面
+        frame_hid_ret_display = tk.Frame(parent, bg='red')
+        columns_1 = [' ', '设备ID', '结果']  # 定义列名称
+        displaycolumns_1 = columns_1  # 表示哪些列可以显示
+
+        ## 设置滚动条
+        sb = tk.Scrollbar(frame_hid_ret_display)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        tree_1 = ttk.Treeview(frame_hid_ret_display, columns=columns_1,
+                              displaycolumns=displaycolumns_1, show='headings',
+                              yscrollcommand=sb.set)
+        sb.config(command=tree_1.yview)
+        ## 设置结果为失败的行标签对应的字体颜色
+        tree_1.tag_configure('tag_failed', foreground='red')
+        ## 设置表格文字居中，以及表格宽度
+        for column in columns_1:
+            tree_1.column(column, anchor='center', width=150, minwidth=100)
+        ## 设置表格头部标题
+        for column in columns_1:
+            tree_1.heading(column, text=column)
+        ## 往表格内添加内容  TODO 以二维列表的形式存储结果数据[(序号，设备ID，结果), ...]\[(序号，设备ID，组件ID，结果)]
+        hid_ret = [(0, '12345', '成功'), (1, '12346', '成功'), ((2, '12347', '失败'))]
+        for idx, content in enumerate(hid_ret):
+            if content[-1] == '失败':
+                tree_1.insert('', idx, values=content, tag='tag_failed')
+            else:
+                tree_1.insert('', idx, values=content)
+        tree_1.pack()
+
+        if_failed = False
+
+        def add_insert():
+            nonlocal if_failed
+            if not if_failed:
+                tree_1.insert('', tk.END, value=(3, '12348', '成功'))
+                if_failed = True
+            else:
+                tree_1.insert('', tk.END, values=(4, '12349', '失败'), tag='tag_failed')
+                if_failed = False
+
+        tk.Button(frame_hid_ret_display, text='插入数据', command=add_insert).pack()  # TODO 每当运行得出一个结果时，自动触发插入方法
+        frame_hid_ret_display.pack()
+
+        # license界面
+        frame_license_ret_display = tk.Frame(parent, bg='green')
+        columns_2 = [' ', '设备ID', '组件ID', '结果']
+        displaycolumns_2 = columns_2
+
+        ## 设置滚动条
+        sb_2 = tk.Scrollbar(frame_license_ret_display)
+        sb_2.pack(side=tk.RIGHT, fill=tk.Y)
+        tree_2 = ttk.Treeview(frame_license_ret_display, columns=columns_2,
+                              displaycolumns=displaycolumns_2, show='headings',
+                              yscrollcommand=sb_2.set)
+        sb_2.config(command=tree_2.yview)
+        ## 设置结果为失败的行标签对应的字体颜色
+        tree_2.tag_configure('tag_failed', foreground='red')
+        ## 设置表格文字居中，以及表格宽度
+        for column in columns_2:
+            tree_2.column(column, anchor='center', width=150, minwidth=100)
+        ## 设置表格头部标题
+        for column in columns_2:
+            tree_2.heading(column, text=column)
+        ## 往表格内添加内容  TODO 以二维列表形式存储写license操作的结果[(序号，设备ID，组件ID，结果), ...]
+        license_ret = [(0, '12345', 1002, '成功'), (1, '12346', 1003, '成功'), ((2, '12347', 1004, '失败'))]
+        for idx, content in enumerate(license_ret):
+            if content[-1] == '失败':
+                tree_2.insert('', idx, values=content, tag='tag_failed')
+            else:
+                tree_2.insert('', idx, values=content)
+        tree_2.pack()
+        return frame_hid_ret_display, frame_license_ret_display
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
