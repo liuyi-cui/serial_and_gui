@@ -1079,7 +1079,7 @@ class OneOsGui:
         tk.Label(parent, text='成 功', font=('微软雅黑', 24), bg='white', fg='green').pack(side=tk.TOP, pady=45)
 
     # 通信方式(串口\J-Link)展示以及配置界面
-    def draw_frame_connected_type(self, parent):
+    def draw_frame_connected_type(self, parent, type='product'):
         # 两个按钮的frame
         frame_1 = tk.Frame(parent)
 
@@ -1112,8 +1112,22 @@ class OneOsGui:
         # 展示以及配置项的frame
         frame_2 = tk.Frame(parent, bg='white')
         ## 描述信息
-        tk.Label(frame_2, textvariable=self.__conn_type.conn_type, font=('微软雅黑', 12),
-                 bg='white').pack(padx=12, pady=20, anchor='nw')
+        if type == 'product':  # 生产模式
+            tk.Label(frame_2, textvariable=self.__conn_type.conn_type, font=('微软雅黑', 12),
+                     bg='white').pack(padx=12, pady=13, anchor='nw')
+        elif type == 'debug':  # 调试模式需要添加一个连接的按钮
+            frame_2_t = tk.Frame(frame_2, bg='white')
+            ### 左边放置描述信息
+            frame_2_t_l = tk.Frame(frame_2_t, bg='white')
+            tk.Label(frame_2_t_l, textvariable=self.__conn_type.conn_type, font=('微软雅黑', 12),
+                     bg='white').pack(padx=12, pady=13, anchor='nw')
+            frame_2_t_l.pack(side=tk.LEFT, fill=tk.Y)
+            ### 右边放置连接按钮
+            frame_2_t_r = tk.Frame(frame_2_t, bg='white')
+            tk.Button(frame_2_t_r, text='连 接').pack(side=tk.BOTTOM, padx=50, pady=5)
+            frame_2_t_r.pack(side=tk.RIGHT, fill=tk.Y)
+            frame_2_t.pack(side=tk.TOP, fill=tk.X)
+
         frame_2.pack(side=tk.TOP, fill=tk.BOTH)
         ## 配置信息
         cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
@@ -1171,6 +1185,7 @@ class OneOsGui:
         frame_top_l = tk.Frame(frame_top)
         ### frame_top_l_1(340*290)
         frame_top_l_1 = tk.Frame(frame_top_l, width=320, height=300, bg='red')
+        self.draw_frame_connected_type(frame_top_l_1, type='debug')
         frame_top_l_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_l_1.pack_propagate(0)
         ### frame_top_l_2 (340*270)
