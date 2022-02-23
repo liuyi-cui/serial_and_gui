@@ -596,7 +596,8 @@ class OneOsGui:
         # 绘制调试模式的界面
         self.frame_debug = self.draw_debug_frame(self.window_)
         # 默认展示生产模式的界面
-        self.frame_product.pack(expand=True, fill=tk.BOTH)
+        # self.frame_product.pack(expand=True, fill=tk.BOTH)
+        self.frame_debug.pack(expand=True, fill=tk.BOTH)
 
     # 以下为菜单栏界面代码
     def draw_menu(self, parent):
@@ -1164,6 +1165,39 @@ class OneOsGui:
     def draw_debug_frame(self, parent):
         """绘制调试模式界面"""
         frame = tk.Frame(parent, bg='green')
+        # frame_top
+        frame_top = tk.Frame(frame)
+        ## frame_top_l
+        frame_top_l = tk.Frame(frame_top)
+        ### frame_top_l_1(340*290)
+        frame_top_l_1 = tk.Frame(frame_top_l, width=320, height=300, bg='red')
+        frame_top_l_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
+        frame_top_l_1.pack_propagate(0)
+        ### frame_top_l_2 (340*270)
+        frame_top_l_2 = tk.Frame(frame_top_l, width=320, height=280, bg='orange')
+        frame_top_l_2.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
+        frame_top_l_2.pack_propagate(0)
+        frame_top_l.pack(side=tk.LEFT, fill=tk.Y)
+        ## frame_top_r
+        frame_top_r = tk.Frame(frame_top)
+        ### frame_top_r_1(680*260)
+        frame_top_r_1 = tk.Frame(frame_top_r, width=700, height=230, bg='yellow')
+        frame_top_r_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
+        frame_top_r_1.pack_propagate(0)
+        ### frame_top_r_2(680*270)
+        frame_top_r_2 = tk.Frame(frame_top_r, width=700, height=270, bg='teal')
+        frame_top_r_2.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
+        frame_top_r_2.pack_propagate(0)
+        ### frame_top_r_3(680*30)
+        frame_top_r_3 = tk.Frame(frame_top_r, width=700, height=80, bg='blue')
+        frame_top_r_3.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
+        frame_top_r_3.pack_propagate(0)
+        frame_top_r.pack(side=tk.RIGHT, fill=tk.Y)
+        frame_top.pack(side=tk.TOP, fill=tk.X)
+        # frame_bottom
+        frame_bottom = tk.Frame(frame, width=1040, height=50, bg='purple')
+        frame_bottom.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+        frame_bottom.pack_propagate(0)
         return frame
 
     def run(self):
