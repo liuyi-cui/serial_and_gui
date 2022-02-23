@@ -790,9 +790,9 @@ class OneOsGui:
         frame_top_b.pack(side=tk.BOTTOM, fill=tk.BOTH)
         frame_top.pack(side=tk.TOP, fill=tk.BOTH)
         # 界面bottom  TODO 各类信息(模式\工位\串口状态\运行状态)展示
-        frame_bottom = tk.Frame(frame, bg='blue')
-        tk.Label(frame_bottom, text='界面bottom').pack(side=tk.LEFT)
-        frame_bottom.pack(side=tk.BOTTOM, fill=tk.X)
+        frame_bottom = tk.Frame(frame, bg='white')
+        self.draw_frame_bottom_statistic(frame_bottom)
+        frame_bottom.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
 
         return frame
 
@@ -1131,6 +1131,34 @@ class OneOsGui:
         sb.config(command=log_shower.yview)
         log_shower.pack()
         return log_shower
+
+    # 绘制底部状态栏信息
+    def draw_frame_bottom_statistic(self, parent):
+        """
+        模式： 生产模式(绿色)
+        工位： 读设备ID/写License(绿色)
+        串口状态： 断开(黑色)/XXX 已连接(绿色)
+        运行状态： 工作中(绿色)/停止(黑色)
+        """  # TODO 需要添加占位Label
+        # 模式-key
+        tk.Label(parent, text='模式：', bg='white').pack(side=tk.LEFT, padx=2)
+        # 模式-value
+        tk.Label(parent, text='生产模式    ', fg='green', bg='white').pack(side=tk.LEFT)
+        tk.Label(parent, text='', bg='white').pack(side=tk.LEFT, padx=25)
+        # 工位-key
+        tk.Label(parent, text='工位：', bg='white').pack(side=tk.LEFT, padx=2)
+        # 工位-value  TODO 更新颜色
+        tk.Label(parent, textvariable=self.__operate_desc, bg='white').pack(side=tk.LEFT)
+        tk.Label(parent, text='', bg='white').pack(side=tk.LEFT, padx=25)
+        # 串口状态-key
+        tk.Label(parent, text='串口状态：', bg='white').pack(side=tk.LEFT, padx=2)
+        # 串口状态-value  TODO 根据串口是否已连接(开始按钮)来改变串口状态
+        tk.Label(parent, text='断开', bg='white').pack(side=tk.LEFT)
+        tk.Label(parent, text='', bg='white').pack(side=tk.LEFT, padx=25)
+        # 运行状态-key
+        tk.Label(parent, text='运行状态：', bg='white').pack(side=tk.LEFT, padx=2)
+        # 运行状态-value  TODO  根据流程是否在进行或者等待状态来显示停止或者工作中
+        tk.Label(parent, text='停止', bg='white').pack(side=tk.LEFT)
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
