@@ -43,6 +43,13 @@ def get_window_size(win, update=True):
     return win.winfo_width(), win.winfo_height(), win.winfo_x(), win.winfo_y()
 
 
+def clear_widget(widget):
+    """对Text, Entry等控件，清除控件内信息"""
+    def inner():
+        widget.delete(1.0, tk.END)
+    return inner
+
+
 class OneOsGui:
 
     def __init__(self):
@@ -62,7 +69,7 @@ class OneOsGui:
         self.__operate_desc = tk.StringVar()  # 操作工位的描述
         self.__operate_desc_detail = tk.StringVar()  # 操作工位的详细描述
         self.__conn_type = ConnType()
-        self.log_shower = tk.Text()  # 操作关键信息打印控件(同日志共享记录信息)
+        self.log_shower_product = tk.Text()  # 操作关键信息打印控件(同日志共享记录信息)
         self.temp_mcu_info = ()
 
     def init_values(self):
@@ -779,12 +786,14 @@ class OneOsGui:
         frame_top_b_r = tk.Frame(frame_top_b)
         # 界面top_b_r_t  TODO 操作明细日志展示
         frame_top_b_r_t = tk.Frame(frame_top_b_r, width=770, height=270)
-        self.log_shower = self.draw_frame_log_shower(frame_top_b_r_t)
+        self.log_shower_product = self.draw_frame_log_shower(frame_top_b_r_t, width=88, height=20)
         frame_top_b_r_t.pack(side=tk.TOP, fill=tk.BOTH, pady=18, padx=10)
         frame_top_b_r_t.pack_propagate(0)
         # 界面top_b_r_b  TODO 清除按钮
         frame_top_b_r_b = tk.Frame(frame_top_b_r, width=770, height=30)
-        tk.Button(frame_top_b_r_b, text='清 除', bg='gray', width=8).pack(anchor='ne', padx=20, pady=2, ipadx=3, ipady=1)
+        tk.Button(frame_top_b_r_b, text='清 除', bg='gray', width=8,
+                  command=clear_widget(self.log_shower_product)).pack(
+            anchor='ne', padx=20, pady=2, ipadx=3, ipady=1)
         frame_top_b_r_b.pack(side=tk.TOP, fill=tk.BOTH)
         frame_top_b_r_b.pack_propagate(0)
         frame_top_b_r.pack(side=tk.LEFT, fill=tk.BOTH)
@@ -1133,12 +1142,12 @@ class OneOsGui:
         cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
         self._draw_serial_port_configuration(frame_2, width=22, bg='white')  # TODO 为了保证一处配置，各个地方的信息保持同步，则需要将这些控件作为属性存储起来，然后调用方法同步更新
 
-    def draw_frame_log_shower(self, parent):
+    def draw_frame_log_shower(self, parent, width, height):
         """绘制日志打印控件"""
-        # 滚动条
+        # 滚动条和Text控件
         sb = tk.Scrollbar(parent)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
-        log_shower = tk.Text(parent, width=88, height=20, yscrollcommand=sb.set)
+        log_shower = tk.Text(parent, width=width, height=height, yscrollcommand=sb.set)
         log_shower.insert(tk.END, '默认关闭操作日志\n')
         log_shower.tag_config('error', foreground='red', font=_FONT_B)
         log_shower.tag_config('confirm', foreground='green', font=_FONT_B)
@@ -1183,13 +1192,17 @@ class OneOsGui:
         frame_top = tk.Frame(frame)
         ## frame_top_l
         frame_top_l = tk.Frame(frame_top)
-        ### frame_top_l_1(340*290)
+        ### frame_top_l_1 通讯方式配置项展示界面(340*290)
         frame_top_l_1 = tk.Frame(frame_top_l, width=320, height=300, bg='red')
         self.draw_frame_connected_type(frame_top_l_1, type='debug')
         frame_top_l_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_l_1.pack_propagate(0)
-        ### frame_top_l_2 (340*270)
+        ### frame_top_l_2 操作记录日志(340*270)
         frame_top_l_2 = tk.Frame(frame_top_l, width=320, height=280, bg='orange')
+        self.log_shower_debug = self.draw_frame_log_shower(frame_top_l_2, width=42, height=18)
+        #### 清除按钮
+        tk.Button(frame_top_l_2, text='清 除', bg='gray', height=1, width=5,
+                  command=clear_widget(self.log_shower_debug)).pack(side=tk.RIGHT, padx=10, pady=3)
         frame_top_l_2.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_l_2.pack_propagate(0)
         frame_top_l.pack(side=tk.LEFT, fill=tk.Y)
