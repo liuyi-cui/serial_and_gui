@@ -16,6 +16,7 @@ from utils.utility import is_hex
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
+_FONT_B = ('宋体', 10, 'bold')
 _BACKGOUND = 'gainsboro'  # 默认背景色
 _ACTIVE_COLOR = 'green'  # 默认激活状态颜色
 _NORMAL_COLOR = 'black'  # 默认正常状态颜色
@@ -61,6 +62,7 @@ class OneOsGui:
         self.__operate_desc = tk.StringVar()  # 操作工位的描述
         self.__operate_desc_detail = tk.StringVar()  # 操作工位的详细描述
         self.__conn_type = ConnType()
+        self.log_shower = tk.Text()  # 操作关键信息打印控件(同日志共享记录信息)
         self.temp_mcu_info = ()
 
     def init_values(self):
@@ -727,54 +729,63 @@ class OneOsGui:
         # 界面top_t_l_t
         frame_top_t_l_t = tk.Frame(frame_top_t_l)
         # 界面top_t_l_t_t  TODO 读id和写license的切换按钮
-        frame_top_t_l_t_t = tk.Frame(frame_top_t_l_t)
+        frame_top_t_l_t_t = tk.Frame(frame_top_t_l_t, width=280, height=30)
         self.draw_frame_top_t_l_t_detail(frame_top_t_l_t_t)
         frame_top_t_l_t_t.pack(side=tk.TOP, fill=tk.X, padx=10)
+        frame_top_t_l_t_t.pack_propagate(0)
         # 界面top_t_l_t_b  TODO 读id和写license的状态展示
-        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t)
+        frame_top_t_l_t_b = tk.Frame(frame_top_t_l_t, width=280, height=75)
         self.draw_frame_topt_l_t_b_detail(frame_top_t_l_t_b)
         frame_top_t_l_t_b.pack(side=tk.TOP, fill=tk.X, pady=4, padx=10)
+        frame_top_t_l_t_b.pack_propagate(0)
         frame_top_t_l_t.pack(side=tk.TOP, fill=tk.X)
         # 界面top_t_l_b TODO HID存储文件\Licesen存储文件\UKey状态展示
-        frame_top_t_l_b = tk.Frame(frame_top_t_l)
+        frame_top_t_l_b = tk.Frame(frame_top_t_l, width=280, height=160)
         self.frame_hid_display, self.frame_license_file_display, self.frame_license_ukey_display = self.draw_frame_operate(frame_top_t_l_b)
         frame_top_t_l_b.pack(side=tk.BOTTOM, fill=tk.BOTH, padx=10)
+        frame_top_t_l_b.pack_propagate(0)
         frame_top_t_l.pack(side=tk.LEFT, fill=tk.BOTH)
         # 界面top_t-r
         frame_top_t_r = tk.Frame(frame_top_t)
         # 界面top_t_r_l  TODO 结果展示(序号-设备id-结果)
-        frame_top_t_r_l = tk.Frame(frame_top_t_r, bg='lightseagreen')
+        frame_top_t_r_l = tk.Frame(frame_top_t_r, width=405, height=265)
         self.frame_hid_ret_display, self.frame_license_ret_display = self.draw_frame_ret(frame_top_t_r_l)
-        frame_top_t_r_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+        frame_top_t_r_l.pack(side=tk.LEFT, fill=tk.Y)
+        frame_top_t_r_l.pack_propagate(0)
         # 界面top_t_r_r
         frame_top_t_r_r = tk.Frame(frame_top_t_r)
         # 界面top_t_r_r_t  TODO 开始\停止按钮
-        frame_top_t_r_r_t = tk.Frame(frame_top_t_r_r, bg='lightblue')
+        frame_top_t_r_r_t = tk.Frame(frame_top_t_r_r, width=280, height=125)
         self.draw_start_button(frame_top_t_r_r_t)
         frame_top_t_r_r_t.pack(side=tk.TOP, fill=tk.BOTH)
+        frame_top_t_r_r_t.pack_propagate(0)
         # 界面top_t_r_r_b  TODO 状态展示(成功\失败\停止\已完成\空白)
-        frame_top_t_r_r_b = tk.Frame(frame_top_t_r_r, bg='paleturquoise')
-        self.frame_statistic = self.draw_frame_statistic(frame_top_t_r_r_b)
+        frame_top_t_r_r_b = tk.Frame(frame_top_t_r_r, bg='white', width=280, height=125)
+        self.draw_frame_statistic(frame_top_t_r_r_b)
         frame_top_t_r_r_b.pack(side=tk.BOTTOM, fill=tk.BOTH)
+        frame_top_t_r_r_b.pack_propagate(0)
         frame_top_t_r_r.pack(side=tk.RIGHT, fill=tk.BOTH)
         frame_top_t_r.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
         frame_top_t.pack(side=tk.TOP, fill=tk.BOTH)
         # 界面top_b
         frame_top_b = tk.Frame(frame_top)
         # 界面top_b_l  TODO 通信方式(串口\J-Link)选择以及配置项展示
-        frame_top_b_l = tk.Frame(frame_top_b, bg='white')
+        frame_top_b_l = tk.Frame(frame_top_b, bg='white', width=290, height=320)
         self.draw_frame_connected_type(frame_top_b_l)
         frame_top_b_l.pack(side=tk.LEFT, fill=tk.BOTH, pady=20, padx=10)
+        frame_top_b_l.pack_propagate(0)
         # 界面top_b_r
         frame_top_b_r = tk.Frame(frame_top_b)
         # 界面top_b_r_t  TODO 操作明细日志展示
-        frame_top_b_r_t = tk.Frame(frame_top_b_r, bg='lightseagreen')
-        tk.Label(frame_top_b_r_t, text='界面top_b_r_t').pack(side=tk.LEFT)
-        frame_top_b_r_t.pack(side=tk.TOP, fill=tk.BOTH)
-        # 界面top_b_r_b  TODO 清楚按钮
-        frame_top_b_r_b = tk.Frame(frame_top_b_r, bg='turquoise')
-        tk.Label(frame_top_b_r_b, text='界面top_b_r_b').pack(side=tk.LEFT)
-        frame_top_b_r_b.pack(side=tk.BOTTOM, fill=tk.BOTH)
+        frame_top_b_r_t = tk.Frame(frame_top_b_r, width=770, height=270)
+        self.log_shower = self.draw_frame_log_shower(frame_top_b_r_t)
+        frame_top_b_r_t.pack(side=tk.TOP, fill=tk.BOTH, pady=18, padx=10)
+        frame_top_b_r_t.pack_propagate(0)
+        # 界面top_b_r_b  TODO 清除按钮
+        frame_top_b_r_b = tk.Frame(frame_top_b_r, width=770, height=30)
+        tk.Button(frame_top_b_r_b, text='清 除', bg='gray', width=8).pack(anchor='ne', padx=20, pady=2, ipadx=3, ipady=1)
+        frame_top_b_r_b.pack(side=tk.TOP, fill=tk.BOTH)
+        frame_top_b_r_b.pack_propagate(0)
         frame_top_b_r.pack(side=tk.LEFT, fill=tk.BOTH)
         frame_top_b.pack(side=tk.BOTTOM, fill=tk.BOTH)
         frame_top.pack(side=tk.TOP, fill=tk.BOTH)
@@ -803,12 +814,12 @@ class OneOsGui:
             self.frame_hid_display.pack(side=tk.TOP, fill=tk.X)
             # 切换统计界面
             self.frame_license_ret_display.pack_forget()
-            self.frame_hid_ret_display.pack()
+            self.frame_hid_ret_display.pack(side=tk.LEFT, fill=tk.BOTH)
 
         def swith_to_license_file():
             if self.__operate_desc.get() == '读设备ID':  # 表示从读ID界面切换过来
                 self.frame_hid_ret_display.pack_forget()
-                self.frame_license_ret_display.pack()
+                self.frame_license_ret_display.pack(side=tk.LEFT, fill=tk.BOTH)
             self.__operate_desc.set('写License-从License文件')
             self.__operate_desc_detail.set('  从本地文件获取License，并写入硬件设备  ')
             label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
@@ -820,7 +831,7 @@ class OneOsGui:
         def swith_to_license_ukey():
             if self.__operate_desc.get() == '读设备ID':  # 表示从读ID界面切换过来
                 self.frame_hid_ret_display.pack_forget()
-                self.frame_license_ret_display.pack()
+                self.frame_license_ret_display.pack(side=tk.LEFT, fill=tk.BOTH)
             self.__operate_desc.set('写License-从UKey')
             self.__operate_desc_detail.set('  从UKey获取License，并写入硬件设备      ')
             label_read_id.configure(bg=_BACKGOUND, fg=_NORMAL_COLOR)
@@ -967,7 +978,7 @@ class OneOsGui:
         创建两个frame，根据operate_type进行pack和pack_forget()
         """
         # hid界面
-        frame_hid_ret_display = tk.Frame(parent, bg='red')
+        frame_hid_ret_display = tk.Frame(parent, bg='white')
         columns_1 = [' ', '设备ID', '结果']  # 定义列名称
         displaycolumns_1 = columns_1  # 表示哪些列可以显示
 
@@ -982,7 +993,7 @@ class OneOsGui:
         tree_1.tag_configure('tag_failed', foreground='red')
         ## 设置表格文字居中，以及表格宽度
         for column in columns_1:
-            tree_1.column(column, anchor='center', width=192, minwidth=96)
+            tree_1.column(column, anchor='center', width=120, minwidth=120)
         ## 设置表格头部标题
         for column in columns_1:
             tree_1.heading(column, text=column)
@@ -993,11 +1004,11 @@ class OneOsGui:
                 tree_1.insert('', idx, values=content, tag='tag_failed')
             else:
                 tree_1.insert('', idx, values=content)
-        tree_1.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        tree_1.pack(side=tk.TOP, fill=tk.BOTH, padx=15, pady=20)
 
         if_failed = False
 
-        def add_insert():
+        def add_insert():  # TODO 往表格内插入数据
             nonlocal if_failed
             if not if_failed:
                 tree_1.insert('', tk.END, value=(3, '12348', '成功'))
@@ -1006,11 +1017,10 @@ class OneOsGui:
                 tree_1.insert('', tk.END, values=(4, '12349', '失败'), tag='tag_failed')
                 if_failed = False
 
-        tk.Button(frame_hid_ret_display, text='插入数据', command=add_insert).pack()  # TODO 每当运行得出一个结果时，自动触发插入方法
-        frame_hid_ret_display.pack()
+        frame_hid_ret_display.pack(side=tk.LEFT, fill=tk.BOTH)
 
         # license界面
-        frame_license_ret_display = tk.Frame(parent, bg='green')
+        frame_license_ret_display = tk.Frame(parent, bg='white')
         columns_2 = [' ', '设备ID', '组件ID', '结果']
         displaycolumns_2 = columns_2
 
@@ -1025,7 +1035,7 @@ class OneOsGui:
         tree_2.tag_configure('tag_failed', foreground='red')
         ## 设置表格文字居中，以及表格宽度
         for column in columns_2:
-            tree_2.column(column, anchor='center', width=144, minwidth=72)
+            tree_2.column(column, anchor='center', width=90, minwidth=90)
         ## 设置表格头部标题
         for column in columns_2:
             tree_2.heading(column, text=column)
@@ -1036,7 +1046,7 @@ class OneOsGui:
                 tree_2.insert('', idx, values=content, tag='tag_failed')
             else:
                 tree_2.insert('', idx, values=content)
-        tree_2.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        tree_2.pack(side=tk.TOP, fill=tk.BOTH, padx=15, pady=20)
         return frame_hid_ret_display, frame_license_ret_display
 
     def draw_start_button(self, parent):
@@ -1064,14 +1074,8 @@ class OneOsGui:
 
     def draw_frame_statistic(self, parent):
         # 执行结果信息展示界面
-        text_shower = tk.Text(parent, width=10, height=2, font=('微软雅黑', 24))
-        text_shower.tag_config('success', foreground='green', justify='center', spacing1=20)  # 成功
-        text_shower.tag_config('confirm', foreground='seagreen', justify='center', spacing1=20)  # 已完成
-        text_shower.tag_config('fail', foreground='red', justify='center', spacing1=20)  # 失败
-        text_shower.tag_config('stop', foreground='blue', justify='center', spacing1=20)  # 停止
-        text_shower.insert(1.0, '成 功', 'success')
-        text_shower.pack()
-        return text_shower
+        # TODO 此处应该使用变量，并且记录该Label，插入时候控制字体颜色
+        tk.Label(parent, text='成 功', font=('微软雅黑', 24), bg='white', fg='green').pack(side=tk.TOP, pady=45)
 
     # 通信方式(串口\J-Link)展示以及配置界面
     def draw_frame_connected_type(self, parent):
@@ -1113,6 +1117,20 @@ class OneOsGui:
         ## 配置信息
         cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
         self._draw_serial_port_configuration(frame_2, width=22, bg='white')  # TODO 为了保证一处配置，各个地方的信息保持同步，则需要将这些控件作为属性存储起来，然后调用方法同步更新
+
+    def draw_frame_log_shower(self, parent):
+        """绘制日志打印控件"""
+        # 滚动条
+        sb = tk.Scrollbar(parent)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        log_shower = tk.Text(parent, width=88, height=20, yscrollcommand=sb.set)
+        log_shower.insert(tk.END, '默认关闭操作日志\n')
+        log_shower.tag_config('error', foreground='red', font=_FONT_B)
+        log_shower.tag_config('confirm', foreground='green', font=_FONT_B)
+        log_shower.tag_config('warn', foreground='blue', font=_FONT_B)
+        sb.config(command=log_shower.yview)
+        log_shower.pack()
+        return log_shower
 
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
