@@ -603,8 +603,8 @@ class OneOsGui:
         # 绘制调试模式的界面
         self.frame_debug = self.draw_debug_frame(self.window_)
         # 默认展示生产模式的界面
-        # self.frame_product.pack(expand=True, fill=tk.BOTH)
-        self.frame_debug.pack(expand=True, fill=tk.BOTH)
+        self.frame_product.pack(expand=True, fill=tk.BOTH)
+        # self.frame_debug.pack(expand=True, fill=tk.BOTH)
 
     # 以下为菜单栏界面代码
     def draw_menu(self, parent):
@@ -1209,7 +1209,8 @@ class OneOsGui:
         ## frame_top_r
         frame_top_r = tk.Frame(frame_top)
         ### frame_top_r_1(680*260)
-        frame_top_r_1 = tk.Frame(frame_top_r, width=700, height=230, bg='yellow')
+        frame_top_r_1 = tk.Frame(frame_top_r, width=700, height=235)
+        self.draw_frame_hid_debug(frame_top_r_1)
         frame_top_r_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_r_1.pack_propagate(0)
         ### frame_top_r_2(680*270)
@@ -1227,6 +1228,99 @@ class OneOsGui:
         frame_bottom.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
         frame_bottom.pack_propagate(0)
         return frame
+
+    def draw_frame_hid_debug(self, parent):
+        """
+        在界面上绘制调试模式下的HID相关操作
+        1 读取设备HID，展示
+        2 读取设备已经写过License信息，并展示
+        3 输入组件ID和License，做单次License写入
+        4 清除当前展示\输入的所有信息
+        """
+        # 右侧文字提示以及清除按钮
+        frame_r = tk.Frame(parent, bg='white')
+        ## 文字提示
+        tk.Label(frame_r, text='与设备交\n互，读设备\n信息，写\nLicense等操\n作', bg='white',
+                 fg='#707070').pack(padx=10, pady=10)
+        ## 清除按钮
+        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='gray').pack(
+            side=tk.BOTTOM, padx=10, pady=10, ipadx=10
+        )
+        frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
+
+        # 读hid 文字label,展示entry,执行按钮
+        frame_l_t = tk.Frame(parent, bg='white')
+        ## 具体细节代码
+        hid = tk.StringVar()
+        def get_hid():  # 获取设备ID按钮执行方法
+            hid.set('abcdefg12345')
+        ### 文字标签
+        tk.Label(frame_l_t, text='设备ID   ', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
+        ### 执行按钮
+        tk.Button(frame_l_t, text='读取设备ID ', bg='gray', command=get_hid
+                  ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=4)
+        ### 输入/展示文字框
+        ety_hid = tk.Entry(frame_l_t, textvariable=hid, width=45)
+        ety_hid.pack(side=tk.LEFT, padx=3, pady=3)
+        frame_l_t.pack(side=tk.TOP, fill=tk.X, padx=1)
+
+        # 读license 文字label,展示textview,执行按钮
+        frame_l_m = tk.Frame(parent, bg='white')
+        ## 具体细节代码
+        ### 文字标签
+        tk.Label(frame_l_m, text='License\n详情', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
+        ### 执行按钮
+        tk.Button(frame_l_m, text='读取License', bg='gray'
+                  ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=3)
+        ### 展示表格
+        frame_inner = tk.Frame(frame_l_m)
+        columns = ['组件ID', 'License']
+        sb_1 = tk.Scrollbar(frame_inner)
+        sb_1.pack(side=tk.RIGHT, fill=tk.Y)
+        tree_1 = ttk.Treeview(frame_inner, columns=columns, displaycolumns=columns,
+                              show='headings', yscrollcommand=sb_1.set, height=5)  # 创建表格对象
+        sb_1.config(command=tree_1.yview)
+        frame_inner.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=10)
+        #### 设置表格文字居中，以及表格宽度
+        tree_1.column('组件ID', anchor='center', width=50, minwidth=50)
+        tree_1.column('License', anchor='center', width=260, minwidth=260)
+        #### 设置头部标题
+        for column in columns:
+            tree_1.heading(column, text=column)
+        #### 往表格里添加数据  TODO 真实的添加逻辑
+        contents = [(1002, 'l7JnPeubhXy0LDrsaftMOI='),
+                    (1003, 'l8JnPeubhXy0LDrsaftMOI='),
+                    (1004, 'l9JnPeubhXy0LDrsaftMOI=')]
+
+        for idx, content in enumerate(contents):
+            tree_1.insert('', idx, values=content)
+        tree_1.pack(side=tk.LEFT, fill=tk.X)
+
+        frame_l_m.pack(side=tk.TOP, fill=tk.X, padx=1)
+        # 写license 文字label,输入entry,执行按钮
+        frame_l_b = tk.Frame(parent, bg='white')
+        ## 具体细节代码
+        frame_1 = tk.Frame(frame_l_b, bg='white')
+        ### 文字
+        tk.Label(frame_1, text='组件ID', bg='white').pack(side=tk.LEFT, pady=6, padx=3)
+        ### 输入框(输入组件ID)
+        etn_component = tk.Entry(frame_1, width=45)
+        etn_component.pack(side=tk.LEFT, padx=15)
+        frame_1.pack(side=tk.TOP, fill=tk.X)
+        frame_2 = tk.Frame(frame_l_b, bg='white')
+        ### 文字
+        tk.Label(frame_2, text='License', bg='white').pack(side=tk.LEFT, pady=6, padx=3)
+        ### 输入框(输入要写入的license)
+        etn_license = tk.Entry(frame_2, width=45)
+        etn_license.pack(side=tk.LEFT, padx=10)
+        ### 执行按钮
+        tk.Button(frame_2, text='写License', bg='gray'
+                  ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=8, ipady=3)
+        frame_2.pack(side=tk.TOP, fill=tk.BOTH)
+        frame_l_b.pack(side=tk.TOP, fill=tk.BOTH, padx=1, pady=2)
+
+
+
 
     def run(self):
         self.window_.mainloop()
