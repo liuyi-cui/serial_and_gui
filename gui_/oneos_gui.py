@@ -199,6 +199,15 @@ class OneOsGui:
             parent.destroy()
         return inner
 
+    def record_filepath_license(self):
+        filepath = filedialog.askopenfilename()
+        if filepath != '':
+            if check_file_suffix(filepath):
+                self.__filepath_license.set(filepath)
+            else:
+                tk.messagebox.showwarning(title='Warning',
+                                          message='License存储文件为Excel类型文件')
+
     def _draw_serial_port_configuration(self, parent, width=35, bg='SystemButtonFace'):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小、padx、pady等参数
         """给定界面，绘制串口通信配置项"""
         # 串口号
@@ -603,8 +612,8 @@ class OneOsGui:
         # 绘制调试模式的界面
         self.frame_debug = self.draw_debug_frame(self.window_)
         # 默认展示生产模式的界面
-        self.frame_product.pack(expand=True, fill=tk.BOTH)
-        # self.frame_debug.pack(expand=True, fill=tk.BOTH)
+        # self.frame_product.pack(expand=True, fill=tk.BOTH)
+        self.frame_debug.pack(expand=True, fill=tk.BOTH)
 
     # 以下为菜单栏界面代码
     def draw_menu(self, parent):
@@ -944,17 +953,8 @@ class OneOsGui:
         filepath_entry = tk.Entry(frame_2, textvariable=self.__filepath_license, width=20)
         filepath_entry.pack(side=tk.LEFT)
         ## 按钮
-        def record_filepath_license():
-            filepath = filedialog.askopenfilename()
-            if filepath != '':
-                if check_file_suffix(filepath):
-                    self.__filepath_license.set(filepath)
-                else:
-                    tk.messagebox.showwarning(title='Warning',
-                                              message='License存储文件为Excel类型文件')
-
         tk.Label(frame_2, text='  ', bg='white').pack(side=tk.LEFT)
-        tk.Button(frame_2, text='选择', width=5, bg='#918B8B', command=record_filepath_license).pack(side=tk.LEFT)
+        tk.Button(frame_2, text='选择', width=5, bg='#918B8B', command=self.record_filepath_license).pack(side=tk.LEFT)
         frame_2.pack(side=tk.TOP, fill=tk.X)
         frame_place_holder_2_2 = tk.Frame(frame_license_file_display, bg='white')
         tk.Label(frame_place_holder_2_2, pady=10, text=' ', bg='white').pack(side=tk.TOP)
@@ -1210,11 +1210,14 @@ class OneOsGui:
         frame_top_r = tk.Frame(frame_top)
         ### frame_top_r_1(680*260)
         frame_top_r_1 = tk.Frame(frame_top_r, width=700, height=235)
+        # 读hid，读license，单个写license操作界面
         self.draw_frame_hid_debug(frame_top_r_1)
         frame_top_r_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_r_1.pack_propagate(0)
         ### frame_top_r_2(680*270)
         frame_top_r_2 = tk.Frame(frame_top_r, width=700, height=270, bg='teal')
+        # 批量写license操作界面
+        self.draw_frame_license_debug(frame_top_r_2)
         frame_top_r_2.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_r_2.pack_propagate(0)
         ### frame_top_r_3(680*30)
@@ -1318,6 +1321,92 @@ class OneOsGui:
                   ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=8, ipady=3)
         frame_2.pack(side=tk.TOP, fill=tk.BOTH)
         frame_l_b.pack(side=tk.TOP, fill=tk.BOTH, padx=1, pady=2)
+
+    # 批量写license界面
+    def draw_frame_license_debug(self, parent):
+        # 右侧文字提示以及清除按钮
+        frame_r = tk.Frame(parent, bg='white')
+        ## 文字提示
+        tk.Label(frame_r, text='与设备交\n互，可批量\n写license操\n作', bg='white',
+                 fg='#707070').pack(padx=2, pady=10)
+        ## 清除按钮
+        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='gray').pack(
+            side=tk.BOTTOM, padx=10, pady=10, ipadx=10
+        )
+        frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
+        ## 选择license来源以及展示界面
+        frame_l_t = tk.Frame(parent)
+        license_source = tk.StringVar()
+        license_source.set('license_file')
+
+        def swith_to_file_license():
+            """选择license来源为本地license文件
+            1 右侧状态展示栏为查找license file的输入框
+            """
+            print(license_source.get())
+            frame_l_t_r_license_ukey.pack_forget()
+            frame_l_t_r_license_file.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+
+        def swith_to_ukey_license():
+            """选择license来源为UKey
+            1 右侧状态展示栏为连接UKey/UKey状态展示界面
+            """
+            print(license_source.get())
+            frame_l_t_r_license_file.pack_forget()
+            frame_l_t_r_license_ukey.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+
+        ### 选择license来源界面
+        frame_l_t_l = tk.Frame(frame_l_t, bg='white', width=250, height=94)
+        #### TODO 具体细节代码
+        ##### 文字标签
+        tk.Label(frame_l_t_l, text='请选择License来源：', bg='white').pack(anchor='nw', pady=8)
+        ##### 来源的单选框
+        tk.Radiobutton(frame_l_t_l, text='从文件获取License  ', variable=license_source,
+                       value='license_file', bg='white',
+                       command=swith_to_file_license).pack(side=tk.TOP)
+        tk.Radiobutton(frame_l_t_l, text='从UKey获取License', variable=license_source,
+                       value='license_ukey', bg='white',
+                       command=swith_to_ukey_license).pack(side=tk.TOP)
+        frame_l_t_l.pack(side=tk.LEFT)
+        frame_l_t_l.pack_propagate(0)
+        ### license来源详情界面(文件/UKey)
+        frame_l_t_r = tk.Frame(frame_l_t, padx=1, pady=2, width=265, height=100)
+        #### TODO 具体细节代码
+        frame_l_t_r_license_file = tk.Frame(frame_l_t_r, bg='white')  # 当来源为license-file时候展示
+        tk.Label(frame_l_t_r_license_file, text='保存设备ID到文件...', bg='white').pack(anchor='nw', pady=10)
+        ety_license_file = tk.Entry(frame_l_t_r_license_file, textvariable=self.__filepath_license, width=25)
+        ety_license_file.pack(side=tk.LEFT, padx=15)
+        tk.Button(frame_l_t_r_license_file, text='选择', bg='gray', width=5,
+                  command=self.record_filepath_license).pack(side=tk.RIGHT, pady=2, padx=4)
+
+        frame_l_t_r_license_ukey = tk.Frame(frame_l_t_r)  # 当来源为license-ukey时候展示
+
+        ## ukey连接状态信息
+        frame_1 = tk.Frame(frame_l_t_r_license_ukey, bg='white')
+        tk.Label(frame_1, textvariable=self.__ukey_info.desc, font=('微软雅黑', 12),
+                 padx=15, pady=18, bg='white').pack(side=tk.LEFT)
+        frame_1.pack(side=tk.TOP, expand=True, fill=tk.X)
+        ## 灰色小字
+        frame_2 = tk.Frame(frame_l_t_r_license_ukey, bg='white')
+        ## TODO 此处需要添加一个图片(表示USB)
+        label_ukey = tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
+                              padx=15, font=('微软雅黑', 12), bg='white')  # TODO 此处需要绑定UKey pin的验证弹窗
+        label_ukey.pack(side=tk.BOTTOM)
+        label_ukey.bind('<Button-1>', self.alter_ukey_connect(frame_l_t_r_license_ukey))
+        frame_2.pack(side=tk.TOP, expand=True, fill=tk.X)
+
+        frame_l_t_r_license_file.pack(side=tk.TOP, expand=True, fill=tk.BOTH, padx=1, pady=2)
+        frame_l_t_r.pack(side=tk.LEFT, fill=tk.Y)
+        frame_l_t_r.pack_propagate(0)
+        frame_l_t.pack(side=tk.TOP, fill=tk.X)
+        ## 输入设备ID查找license界面
+        frame_l_m = tk.Frame(parent)
+        frame_l_m.pack(side=tk.TOP)
+        ## 展示查找到的组件-license和批量写界面
+        frame_l_b = tk.Frame(parent)
+        frame_l_b.pack(side=tk.TOP)
+
+
 
 
 
