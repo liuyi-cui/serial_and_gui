@@ -612,8 +612,7 @@ class OneOsGui:
         # 绘制调试模式的界面
         self.frame_debug = self.draw_debug_frame(self.window_)
         # 默认展示生产模式的界面
-        # self.frame_product.pack(expand=True, fill=tk.BOTH)
-        self.frame_debug.pack(expand=True, fill=tk.BOTH)
+        self.frame_product.pack(expand=True, fill=tk.BOTH)
 
     # 以下为菜单栏界面代码
     def draw_menu(self, parent):
@@ -631,11 +630,21 @@ class OneOsGui:
         # 创建一个菜单对象
         mode_menu = tk.Menu(parent, tearoff=0)
 
+        def swith_to_product():
+            self.frame_debug.pack_forget()
+            self.frame_product.pack(expand=True, fill=tk.BOTH)
+
+        def swith_to_debug():
+            self.frame_product.pack_forget()
+            self.frame_debug.pack(expand=True, fill=tk.BOTH)
+
         # 给菜单对象添加选项
         mode_menu.add_radiobutton(label='生产模式', activebackground='gray',
-                                  variable=self.__mode_type, value=ModeEnum.PRODUCT.value)
+                                  variable=self.__mode_type, value=ModeEnum.PRODUCT.value,
+                                  command=swith_to_product)
         mode_menu.add_radiobutton(label='调试模式', activebackground='gray',
-                                  variable=self.__mode_type, value=ModeEnum.DEBUG.value)
+                                  variable=self.__mode_type, value=ModeEnum.DEBUG.value,
+                                  command=swith_to_debug)
         # 将菜单对象放置在父对象上，命名为模式选择
         parent.add_cascade(label='模式选择', menu=mode_menu)
 
@@ -810,7 +819,7 @@ class OneOsGui:
         frame_top.pack(side=tk.TOP, fill=tk.BOTH)
         # 界面bottom  TODO 各类信息(模式\工位\串口状态\运行状态)展示
         frame_bottom = tk.Frame(frame, bg='white')
-        self.draw_frame_bottom_statistic(frame_bottom)
+        self.draw_frame_bottom_statistic_product(frame_bottom)
         frame_bottom.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
 
         return frame
@@ -1157,7 +1166,7 @@ class OneOsGui:
         return log_shower
 
     # 绘制底部状态栏信息
-    def draw_frame_bottom_statistic(self, parent):
+    def draw_frame_bottom_statistic_product(self, parent):
         """
         模式： 生产模式(绿色)
         工位： 读设备ID/写License(绿色)
@@ -1193,12 +1202,12 @@ class OneOsGui:
         ## frame_top_l
         frame_top_l = tk.Frame(frame_top)
         ### frame_top_l_1 通讯方式配置项展示界面(340*290)
-        frame_top_l_1 = tk.Frame(frame_top_l, width=320, height=300, bg='red')
+        frame_top_l_1 = tk.Frame(frame_top_l, width=320, height=300, bg='red', bd=1, relief='solid')
         self.draw_frame_connected_type(frame_top_l_1, type='debug')
         frame_top_l_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_l_1.pack_propagate(0)
         ### frame_top_l_2 操作记录日志(340*270)
-        frame_top_l_2 = tk.Frame(frame_top_l, width=320, height=280, bg='orange')
+        frame_top_l_2 = tk.Frame(frame_top_l, width=320, height=280, bg='orange', bd=1, relief='solid')
         self.log_shower_debug = self.draw_frame_log_shower(frame_top_l_2, width=42, height=18)
         #### 清除按钮
         tk.Button(frame_top_l_2, text='清 除', bg='gray', height=1, width=5,
@@ -1209,25 +1218,28 @@ class OneOsGui:
         ## frame_top_r
         frame_top_r = tk.Frame(frame_top)
         ### frame_top_r_1(680*260)
-        frame_top_r_1 = tk.Frame(frame_top_r, width=700, height=235)
+        frame_top_r_1 = tk.Frame(frame_top_r, width=700, height=235, bd=1, relief='solid')
         # 读hid，读license，单个写license操作界面
         self.draw_frame_hid_debug(frame_top_r_1)
         frame_top_r_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_r_1.pack_propagate(0)
         ### frame_top_r_2(680*270)
-        frame_top_r_2 = tk.Frame(frame_top_r, width=700, height=270, bg='white')
-        # 批量写license操作界面
+        frame_top_r_2 = tk.Frame(frame_top_r, width=700, height=270, bd=1, relief='solid')
+        #### 批量写license操作界面
         self.draw_frame_license_debug(frame_top_r_2)
         frame_top_r_2.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_r_2.pack_propagate(0)
         ### frame_top_r_3(680*30)
-        frame_top_r_3 = tk.Frame(frame_top_r, width=700, height=80, bg='blue')
+        frame_top_r_3 = tk.Frame(frame_top_r, width=700, height=80, bd=1, relief='solid')
+        #### 读取设备ID，并选择文件进行存储
+        self.draw_frame_record_hid(frame_top_r_3)
         frame_top_r_3.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_r_3.pack_propagate(0)
         frame_top_r.pack(side=tk.RIGHT, fill=tk.Y)
         frame_top.pack(side=tk.TOP, fill=tk.X)
         # frame_bottom
         frame_bottom = tk.Frame(frame, width=1040, height=50, bg='purple')
+        self.draw_frame_bottom_statistic_debug(frame_bottom)
         frame_bottom.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
         frame_bottom.pack_propagate(0)
         return frame
@@ -1421,7 +1433,7 @@ class OneOsGui:
         frame_l_b_r.pack(side=tk.RIGHT)
         frame_l_b_r.pack_propagate(0)
         #### 展示license的treeview
-        frame_l_b_l = tk.Frame(frame_l_b, width=320, height=170)
+        frame_l_b_l = tk.Frame(frame_l_b, width=320, height=170, bg='white')
         columns = ['组件ID', 'License']
         sb = tk.Scrollbar(frame_l_b_l)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
@@ -1443,12 +1455,48 @@ class OneOsGui:
             tree.insert('', idx, values=content)
         tree.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
         frame_l_b_l.pack_propagate(0)
-        frame_l_b.pack(side=tk.TOP)
+        frame_l_b.pack(side=tk.TOP, fill=tk.X)
 
+    def draw_frame_record_hid(self, parent):
+        """读取设备ID，并选择文件进行存储
+        1 可选择文件
+        2 设备ID支持手动输入。并且跟顶部的读取设备ID按钮保持同步
+        """
+        # 右侧文字提示以及清除按钮
+        frame_r = tk.Frame(parent, bg='white')
+        ## 文字提示
+        tk.Label(frame_r, text='将设备ID记\n录到本地文\n件', bg='white',
+                 fg='#707070').pack(padx=2, pady=10)
+        frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
 
+        frame_l_t = tk.Frame(parent, bg='white')
+        tk.Label(frame_l_t, text='记录文件', bg='white').pack(side=tk.LEFT, pady=8)
+        ety_hid_filepath = tk.Entry(frame_l_t, width=45)
+        ety_hid_filepath.pack(side=tk.LEFT, padx=10, pady=8)
+        tk.Button(frame_l_t, text='选 择', bg='gray').pack(side=tk.LEFT, pady=10, ipadx=10)
+        frame_l_t.pack(side=tk.TOP, fill=tk.X)
 
+        frame_l_b = tk.Frame(parent, bg='white')
+        tk.Label(frame_l_b, text='设备ID   ', bg='white').pack(side=tk.LEFT)
+        ety_hid = tk.Entry(frame_l_b, width=45)
+        ety_hid.pack(side=tk.LEFT, padx=10)
+        tk.Button(frame_l_b, text='保 存', bg='gray').pack(side=tk.LEFT, ipadx=10)
+        frame_l_b.pack(side=tk.BOTTOM, fill=tk.X)
 
-
+    def draw_frame_bottom_statistic_debug(self, parent):
+        """调试界面的底部状态栏
+        模式：调试模式(绿色)
+        串口状态：XXX已连接(绿色)/断开(黑色)
+        """
+        # 模式-key
+        tk.Label(parent, text='模式：', bg='white').pack(side=tk.LEFT, padx=2)
+        # 模式-value
+        tk.Label(parent, text='调试模式', bg='white', fg='green').pack(side=tk.LEFT)
+        tk.Label(parent, text='', bg='white').pack(side=tk.LEFT, padx=120)
+        # 串口状态-key
+        tk.Label(parent, text='串口状态：', bg='white').pack(side=tk.LEFT, padx=2)
+        # 串口状态-vaule
+        tk.Label(parent, text='XXX已连接', bg='white', fg='green').pack(side=tk.LEFT)
 
     def run(self):
         self.window_.mainloop()
