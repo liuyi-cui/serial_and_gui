@@ -1215,7 +1215,7 @@ class OneOsGui:
         frame_top_r_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_r_1.pack_propagate(0)
         ### frame_top_r_2(680*270)
-        frame_top_r_2 = tk.Frame(frame_top_r, width=700, height=270, bg='teal')
+        frame_top_r_2 = tk.Frame(frame_top_r, width=700, height=270, bg='white')
         # 批量写license操作界面
         self.draw_frame_license_debug(frame_top_r_2)
         frame_top_r_2.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
@@ -1267,7 +1267,7 @@ class OneOsGui:
         ety_hid.pack(side=tk.LEFT, padx=3, pady=3)
         frame_l_t.pack(side=tk.TOP, fill=tk.X, padx=1)
 
-        # 读license 文字label,展示textview,执行按钮
+        # 读license 文字label,展示treeview,执行按钮
         frame_l_m = tk.Frame(parent, bg='white')
         ## 具体细节代码
         ### 文字标签
@@ -1400,10 +1400,49 @@ class OneOsGui:
         frame_l_t_r.pack_propagate(0)
         frame_l_t.pack(side=tk.TOP, fill=tk.X)
         ## 输入设备ID查找license界面
-        frame_l_m = tk.Frame(parent)
-        frame_l_m.pack(side=tk.TOP)
+        frame_l_m = tk.Frame(parent, bg='white')
+
+        def get_license():
+            """根据用户输入的设备ID，通过本地license文件/UKey查找相应的license"""
+            print('获取entry控件的输入值，根据license文件或者ukey查找对应的组件-license')
+
+        tk.Label(frame_l_m, text='设备ID', bg='white').pack(side=tk.LEFT, pady=10, padx=2)
+        ety_hid = tk.Entry(frame_l_m, width=30)
+        ety_hid.pack(side=tk.LEFT, pady=10)
+        tk.Button(frame_l_m, text='获取License', bg='gray',
+                  command=get_license).pack(side=tk.LEFT, pady=10, padx=30, ipadx=2)
+        frame_l_m.pack(side=tk.TOP, fill=tk.X)
         ## 展示查找到的组件-license和批量写界面
-        frame_l_b = tk.Frame(parent)
+        frame_l_b = tk.Frame(parent, bg='white')
+        ### treeview展示查找到的组件-license信息，以及执行写入按钮
+        #### 执行按钮
+        frame_l_b_r = tk.Frame(frame_l_b, width=100, height=170, bg='white')
+        tk.Button(frame_l_b_r, text='批量写license', bg='gray').pack(anchor='nw', padx=5)
+        frame_l_b_r.pack(side=tk.RIGHT)
+        frame_l_b_r.pack_propagate(0)
+        #### 展示license的treeview
+        frame_l_b_l = tk.Frame(frame_l_b, width=320, height=170)
+        columns = ['组件ID', 'License']
+        sb = tk.Scrollbar(frame_l_b_l)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        tree = ttk.Treeview(frame_l_b_l, columns=columns, displaycolumns=columns,
+                            show='headings', yscrollcommand=sb.set, height=4)
+        sb.config(command=tree.yview)
+        frame_l_b_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=10)
+        ##### 设置文字居中，以及表格宽度
+        tree.column('组件ID', anchor='center', width=50, minwidth=50)
+        tree.column('License', anchor='center', width=230, minwidth=230)
+        #####  设置头部标题
+        for column in columns:
+            tree.heading(column, text=column)
+        ##### 往表格里添加数据 TODO 真实的添加逻辑
+        contents = [(1002, 'l7JnPeubhXy0LDrsaftMOI='),
+                    (1003, 'l8JnPeubhXy0LDrsaftMOI='),
+                    (1004, 'l9JnPeubhXy0LDrsaftMOI=')]
+        for idx, content in enumerate(contents):
+            tree.insert('', idx, values=content)
+        tree.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+        frame_l_b_l.pack_propagate(0)
         frame_l_b.pack(side=tk.TOP)
 
 
