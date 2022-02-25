@@ -809,7 +809,7 @@ class OneOsGui:
         frame_top_b_r_t.pack_propagate(0)
         # 界面top_b_r_b  TODO 清除按钮
         frame_top_b_r_b = tk.Frame(frame_top_b_r, width=770, height=30)
-        tk.Button(frame_top_b_r_b, text='清 除', bg='gray', width=8,
+        tk.Button(frame_top_b_r_b, text='清 除', bg='#D7D7D7', width=8,
                   command=clear_widget(self.log_shower_product)).pack(
             anchor='ne', padx=20, pady=2, ipadx=3, ipady=1)
         frame_top_b_r_b.pack(side=tk.TOP, fill=tk.BOTH)
@@ -939,7 +939,7 @@ class OneOsGui:
                     tkinter.messagebox.showwarning(title='Warning',
                                                message='请选择Excel类型文件')
 
-        tk.Button(frame_2, text='选择', width=5, bg='#918B8B', command=record_filepath_hid).pack(side=tk.LEFT,
+        tk.Button(frame_2, text='选择', width=5, bg='#D7D7D7', command=record_filepath_hid).pack(side=tk.LEFT,
                                                                                                padx=6)
         ### 填充文本选择框以及按钮
         frame_2.pack(side=tk.TOP, fill=tk.X)
@@ -1142,7 +1142,7 @@ class OneOsGui:
             frame_2_t_l.pack(side=tk.LEFT, fill=tk.Y)
             ### 右边放置连接按钮
             frame_2_t_r = tk.Frame(frame_2_t, bg='white')
-            tk.Button(frame_2_t_r, text='连 接').pack(side=tk.BOTTOM, padx=50, pady=5)
+            tk.Button(frame_2_t_r, text='连 接', bg='#D7D7D7').pack(side=tk.BOTTOM, padx=50, pady=5)
             frame_2_t_r.pack(side=tk.RIGHT, fill=tk.Y)
             frame_2_t.pack(side=tk.TOP, fill=tk.X)
 
@@ -1196,7 +1196,7 @@ class OneOsGui:
     # 以下为调试模式界面代码
     def draw_debug_frame(self, parent):
         """绘制调试模式界面"""
-        frame = tk.Frame(parent, bg='green')
+        frame = tk.Frame(parent)
         # frame_top
         frame_top = tk.Frame(frame)
         ## frame_top_l
@@ -1207,10 +1207,10 @@ class OneOsGui:
         frame_top_l_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_l_1.pack_propagate(0)
         ### frame_top_l_2 操作记录日志(340*270)
-        frame_top_l_2 = tk.Frame(frame_top_l, width=320, height=280, bg='orange', bd=1, relief='solid')
+        frame_top_l_2 = tk.Frame(frame_top_l, width=320, height=280, bg='white', bd=1, relief='solid')
         self.log_shower_debug = self.draw_frame_log_shower(frame_top_l_2, width=42, height=18)
         #### 清除按钮
-        tk.Button(frame_top_l_2, text='清 除', bg='gray', height=1, width=5,
+        tk.Button(frame_top_l_2, text='清 除', bg='#D7D7D7', height=1, width=5,
                   command=clear_widget(self.log_shower_debug)).pack(side=tk.RIGHT, padx=10, pady=3)
         frame_top_l_2.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_l_2.pack_propagate(0)
@@ -1238,9 +1238,9 @@ class OneOsGui:
         frame_top_r.pack(side=tk.RIGHT, fill=tk.Y)
         frame_top.pack(side=tk.TOP, fill=tk.X)
         # frame_bottom
-        frame_bottom = tk.Frame(frame, width=1040, height=50, bg='purple')
+        frame_bottom = tk.Frame(frame, width=1040, height=30, bg='white')
         self.draw_frame_bottom_statistic_debug(frame_bottom)
-        frame_bottom.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+        frame_bottom.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
         frame_bottom.pack_propagate(0)
         return frame
 
@@ -1258,7 +1258,7 @@ class OneOsGui:
         tk.Label(frame_r, text='与设备交\n互，读设备\n信息，写\nLicense等操\n作', bg='white',
                  fg='#707070').pack(padx=10, pady=10)
         ## 清除按钮
-        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='gray').pack(
+        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='#D7D7D7').pack(
             side=tk.BOTTOM, padx=10, pady=10, ipadx=10
         )
         frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
@@ -1272,7 +1272,7 @@ class OneOsGui:
         ### 文字标签
         tk.Label(frame_l_t, text='设备ID   ', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
         ### 执行按钮
-        tk.Button(frame_l_t, text='读取设备ID ', bg='gray', command=get_hid
+        tk.Button(frame_l_t, text='读取设备ID ', bg='#D7D7D7', command=get_hid
                   ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=4)
         ### 输入/展示文字框
         ety_hid = tk.Entry(frame_l_t, textvariable=hid, width=45)
@@ -1285,7 +1285,7 @@ class OneOsGui:
         ### 文字标签
         tk.Label(frame_l_m, text='License\n详情', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
         ### 执行按钮
-        tk.Button(frame_l_m, text='读取License', bg='gray'
+        tk.Button(frame_l_m, text='读取License', bg='#D7D7D7'
                   ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=3)
         ### 展示表格
         frame_inner = tk.Frame(frame_l_m)
@@ -1329,7 +1329,7 @@ class OneOsGui:
         etn_license = tk.Entry(frame_2, width=45)
         etn_license.pack(side=tk.LEFT, padx=10)
         ### 执行按钮
-        tk.Button(frame_2, text='写License', bg='gray'
+        tk.Button(frame_2, text='写License', bg='#D7D7D7'
                   ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=8, ipady=3)
         frame_2.pack(side=tk.TOP, fill=tk.BOTH)
         frame_l_b.pack(side=tk.TOP, fill=tk.BOTH, padx=1, pady=2)
@@ -1342,7 +1342,7 @@ class OneOsGui:
         tk.Label(frame_r, text='与设备交\n互，可批量\n写license操\n作', bg='white',
                  fg='#707070').pack(padx=2, pady=10)
         ## 清除按钮
-        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='gray').pack(
+        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='#D7D7D7').pack(
             side=tk.BOTTOM, padx=10, pady=10, ipadx=10
         )
         frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
@@ -1388,7 +1388,7 @@ class OneOsGui:
         tk.Label(frame_l_t_r_license_file, text='保存设备ID到文件...', bg='white').pack(anchor='nw', pady=10)
         ety_license_file = tk.Entry(frame_l_t_r_license_file, textvariable=self.__filepath_license, width=25)
         ety_license_file.pack(side=tk.LEFT, padx=15)
-        tk.Button(frame_l_t_r_license_file, text='选择', bg='gray', width=5,
+        tk.Button(frame_l_t_r_license_file, text='选择', bg='#D7D7D7', width=5,
                   command=self.record_filepath_license).pack(side=tk.RIGHT, pady=2, padx=4)
 
         frame_l_t_r_license_ukey = tk.Frame(frame_l_t_r)  # 当来源为license-ukey时候展示
@@ -1421,7 +1421,7 @@ class OneOsGui:
         tk.Label(frame_l_m, text='设备ID', bg='white').pack(side=tk.LEFT, pady=10, padx=2)
         ety_hid = tk.Entry(frame_l_m, width=30)
         ety_hid.pack(side=tk.LEFT, pady=10)
-        tk.Button(frame_l_m, text='获取License', bg='gray',
+        tk.Button(frame_l_m, text='获取License', bg='#D7D7D7',
                   command=get_license).pack(side=tk.LEFT, pady=10, padx=30, ipadx=2)
         frame_l_m.pack(side=tk.TOP, fill=tk.X)
         ## 展示查找到的组件-license和批量写界面
@@ -1429,7 +1429,7 @@ class OneOsGui:
         ### treeview展示查找到的组件-license信息，以及执行写入按钮
         #### 执行按钮
         frame_l_b_r = tk.Frame(frame_l_b, width=100, height=170, bg='white')
-        tk.Button(frame_l_b_r, text='批量写license', bg='gray').pack(anchor='nw', padx=5)
+        tk.Button(frame_l_b_r, text='批量写license', bg='#D7D7D7').pack(anchor='nw', padx=5)
         frame_l_b_r.pack(side=tk.RIGHT)
         frame_l_b_r.pack_propagate(0)
         #### 展示license的treeview
@@ -1473,14 +1473,14 @@ class OneOsGui:
         tk.Label(frame_l_t, text='记录文件', bg='white').pack(side=tk.LEFT, pady=8)
         ety_hid_filepath = tk.Entry(frame_l_t, width=45)
         ety_hid_filepath.pack(side=tk.LEFT, padx=10, pady=8)
-        tk.Button(frame_l_t, text='选 择', bg='gray').pack(side=tk.LEFT, pady=10, ipadx=10)
+        tk.Button(frame_l_t, text='选 择', bg='#D7D7D7').pack(side=tk.LEFT, pady=10, ipadx=10)
         frame_l_t.pack(side=tk.TOP, fill=tk.X)
 
         frame_l_b = tk.Frame(parent, bg='white')
         tk.Label(frame_l_b, text='设备ID   ', bg='white').pack(side=tk.LEFT)
         ety_hid = tk.Entry(frame_l_b, width=45)
         ety_hid.pack(side=tk.LEFT, padx=10)
-        tk.Button(frame_l_b, text='保 存', bg='gray').pack(side=tk.LEFT, ipadx=10)
+        tk.Button(frame_l_b, text='保 存', bg='#D7D7D7').pack(side=tk.LEFT, ipadx=10)
         frame_l_b.pack(side=tk.BOTTOM, fill=tk.X)
 
     def draw_frame_bottom_statistic_debug(self, parent):
