@@ -2,6 +2,7 @@
 """
 实体类
 """
+import tkinter as tk
 from collections import namedtuple
 from enum import Enum
 
@@ -54,6 +55,9 @@ class ProtocolCommand(Enum):
 
 
 class DataError(Enum):
+    """
+    License的校验信息
+    """
 
     LICENSE_PROCESS_OK = '00'
     LICENSE_READ_HID_FAIL = '01'
@@ -83,7 +87,141 @@ class DataError(Enum):
 Error_Data_Map = {i.value: i.name for i in DataError.__members__.values()}
 
 
+class DisplayInfoEntity:
+    """
+    记录展示信息
+    """
+
+    def __init__(self, operate_type: str):
+        self.operate_type = operate_type  # 操作状态(读HID/写License)
+        self.port = ''  # 串口号
+        self.file_path = ''  # HID存储文件/license记录文件
+
+
+class ModeEnum(Enum):
+    """模式"""
+    PRODUCT = 'PRODUCT'  # 生产模式
+    DEBUG = 'DEBUG'  # 调试模式
+
+
+class OperateEnum(Enum):
+    """工位"""
+    HID = 'HID'  # 读HID
+    LICENSE_FILE = 'LICENSE_FILE'  # 通过文件写License
+    LICENSE_UKEY = 'LICENSE_UKEY'  # 通过UKey写License
+
+
+class ConnType:
+    """通信方式"""
+    def __init__(self):
+        self.conn_type = tk.StringVar()
+        self.swith_to_port()
+
+    def swith_to_jlink(self):
+        self.conn_type.set('J-Link通信')
+
+    def swith_to_port(self):
+        self.conn_type.set('串口通信')
+
+
+class SerialPortConfiguration:
+    """串口通信配置项"""
+
+    def __init__(self):
+        self.port = ''  # 串口号
+        self.baud_rate = '115200'  # 波特率
+        self.data_digit = '8'  # 数据位
+        self.check_digit = 'None'  # 校验位
+        self.stop_digit = '1'  # 停止位
+        self.stream_controller = 'None'  # 流控
+
+
+class JLinkConfiguration:
+    """J-Link通信配置项"""
+
+    def __init__(self):
+        self.serial_no = ''  # 仿真器序列号
+        self.interface_type = 'JTAG'  # JTAG/SWD，默认JTAG
+        self.rate = '4000'  # 传输速率，默认4000
+        self.mcu = ''  # 芯片名称
+        self.hid_addr = ''  # hid存储地址
+        self.license_addr = ''  # license存储地址
+        self.license_size_stored = ''  # license存储区域大小
+
+
+class MCUInfo:
+    """mcu相关信息"""
+
+    def __init__(self):
+        self.manufacturer = ''
+        self.device = tk.StringVar()
+        self.core = ''
+        self.num_cores = 0
+        self.flash_size = tk.StringVar()
+        self.ram_size = ''
+
+    def get_info(self, info: tuple):
+        """
+
+        Args:
+            info: ('ST', 'STM32L475VG', 'Cortex-M0', '1', '1024 KB', '96 KB')
+
+        Returns:
+
+        """
+        self.manufacturer = info[0]
+        self.device.set(info[1])
+        self.core = info[2]
+        self.num_cores = info[3]
+        self.flash_size.set(info[4])
+        self.ram_size = info[5]
+
+    def __str__(self):
+        print(f'厂家: {self.manufacturer}')
+        print(f'device: {self.device.get()}')
+        print(f'core: {self.core}')
+        print(f'num_cores: {self.num_cores}')
+        print(f'flash大小: {self.flash_size.get()}')
+        print(f'ram大小: {self.ram_size}')
+        return ''
+
+
+class LogConfiguration:
+    """日志配置选项"""
+
+    def __init__(self):
+        self.is_open = tk.IntVar()  # 默认不开启日志记录
+        self.log_path = tk.StringVar()  # 日志路径
+        self.max_size = tk.StringVar()  # 日志大小上限
+
+
+class UKeyInfo:
+    """记录UKey信息"""
+
+    def __init__(self):
+        self.is_open = False  # 初始状态为未连接
+        self.desc = tk.StringVar()
+        self.desc_child = tk.StringVar()
+        self.desc.set('未验证，请先使用UKey验证')
+        self.desc_child.set('UKey验证')
+
+    def update_connected(self, ukey_name):
+        """
+        建立连接后更新部分属性
+        Args:
+            ukey_name: TODO 此处表示ukey的名称还是用户名还是ukey占用的端口号呢
+
+        Returns:
+
+        """
+        self.is_open = True
+        self.desc = f'{ukey_name}：用户已认证'
+        self.desc_child = '切换UKey'
+
+    def close(self):
+        self.__init__()
+
+
 if __name__ == '__main__':
-    data = '10'
-    err_type = Error_Data_Map.get(data)
-    print(err_type)
+    mcu_info = MCUInfo()
+    print(mcu_info)

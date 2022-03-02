@@ -65,7 +65,7 @@ def b64tobytes(inputs):
     Returns:
 
     '''
-    tmp = bytes(base64.b64decode(inputs).hex(), encoding = "utf8")
+    tmp = bytes(base64.b64decode(inputs).hex(), encoding="utf8")
     result = binascii.a2b_hex(tmp)
     return result
 
