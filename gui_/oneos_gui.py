@@ -9,8 +9,8 @@ from tkinter import filedialog
 
 from serial_.pyboard import PyBoard
 from utils.entities import ModeEnum, OperateEnum, ConnType  # 操作方式、工位、通信方式
-from utils.entities import SerialPortConfiguration, JLinkConfiguration, LogConfiguration, MCUInfo, \
-    UKeyInfo# 串口配置项，JLink配置项，日志配置项，MCU信息
+from utils.entities import SerialPortConfiguration, SerialPortInfo, JLinkConfiguration, LogConfiguration, MCUInfo, \
+    UKeyInfo# 串口配置项，串口配置控件，JLink配置项，日志配置项，MCU信息
 from utils.file_utils import check_file_suffix
 from utils.utility import is_hex
 
@@ -67,10 +67,14 @@ class OneOsGui:
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
         self.__operate_type = tk.StringVar()  # 操作工位(读HID/写License-从License文件/写License-从UKey)
         self.__operate_desc = tk.StringVar()  # 操作工位的描述
+        self.__run_state = tk.StringVar()  # 运行状态
         self.__operate_desc_detail = tk.StringVar()  # 操作工位的详细描述
         self.__conn_type = ConnType()
         self.log_shower_product = tk.Text()  # 操作关键信息打印控件(同日志共享记录信息)
         self.temp_mcu_info = ()
+        self.__serial_port_info_config = None  # 配置栏的串口控件
+        self.__serial_port_info_product = None  # 生产界面的串口控件
+        self.__serial_port_info_debug = None  # 调试界面的串口控件
 
     def init_values(self):
         """定义属性初始值"""
@@ -78,6 +82,7 @@ class OneOsGui:
         self.__operate_type.set('HID')  # 默认操作工位为读HID
         self.__operate_desc.set('读设备ID')  # 默认操作工位描述
         self.__operate_desc_detail.set('  从设备读取物理识别码，并保存到本地文件')
+        self.__run_state.set('停止')  # 初始运行状态为停止
         self.__serial_port_configuration = SerialPortConfiguration()  # 串口通信数据
         self.__jlink_configuration = JLinkConfiguration()  # J-Link通信数据
         self.__log_configuration = LogConfiguration()  # 日志配置数据
@@ -86,10 +91,29 @@ class OneOsGui:
         self.__filepath_hid = tk.StringVar()  # HID存储文件路径
         self.__filepath_license = tk.StringVar()  # License存储文件路径
 
+    def __update_serial_port_info(self, port, baudrate, data_digit, check_digit, stop_digit,
+                                  stream_controller):
+        """
+        更新串口控件的展示信息
+        Args:
+            port:
+            baudrate:
+            data_digit:
+            check_digit:
+            stop_digit:
+            stream_controller:
+
+        Returns:
+
+        """
+        self.__serial_port_info_debug.update(port, baudrate, data_digit, check_digit, stop_digit,
+                                             stream_controller)
+        self.__serial_port_info_product.update(port, baudrate, data_digit, check_digit, stop_digit,
+                                               stream_controller)
+
     def port_configuration_confirm(self, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller, parent=None):
         """
         串口配置确定按钮触发方法()
-        TODO 此处需要获取各个下拉框的值，因此_draw_serial_port_configuration应该返回各个cb
         针对各个下拉框的值，做合理性校验
         校验成功之后，记录各个下拉框的值(需要在几个地方共享)
         """
@@ -125,6 +149,8 @@ class OneOsGui:
             self.__serial_port_configuration.stream_controller = stream_controller
             print(f'流控： {stream_controller}')
             self.__conn_type.swith_to_port()  # 通信方式更新为串口通信
+            self.__update_serial_port_info(port, baudrate, data_digit, check_digit, stop_digit,
+                                           stream_controller)
             if parent is not None:
                 parent.destroy()
         return inner
@@ -213,10 +239,11 @@ class OneOsGui:
         # 串口号
         frame = tk.Frame(parent, bg=bg)
         tk.Label(frame, text='串口号', bg=bg).pack(side=tk.LEFT, padx=10)
-        cb_port = ttk.Combobox(frame, value=[self.__serial_port_configuration.port], width=width,
+        cb_port = ttk.Combobox(frame, value=self.__serial_port_configuration.port_list, width=width,
                      state='readonly')
-        if self.__serial_port_configuration.port != '':
-            cb_port.current(0)
+        if self.__serial_port_configuration.port in self.__serial_port_configuration.port_list:
+            index_ = self.__serial_port_configuration.port_list.index(self.__serial_port_configuration.port)
+            cb_port.current(index_)
         cb_port.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 波特率
@@ -1150,6 +1177,12 @@ class OneOsGui:
         ## 配置信息
         cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
         self._draw_serial_port_configuration(frame_2, width=22, bg='white')  # TODO 为了保证一处配置，各个地方的信息保持同步，则需要将这些控件作为属性存储起来，然后调用方法同步更新
+        if type == 'product':
+            self.__serial_port_info_product = SerialPortInfo(cb_port, cb_baudrate, cb_data,
+                                                             cb_check, cb_stop, cb_stream_controller)
+        elif type == 'debug':
+            self.__serial_port_info_debug = SerialPortInfo(cb_port, cb_baudrate, cb_data,
+                                                           cb_check, cb_stop, cb_stream_controller)
 
     def draw_frame_log_shower(self, parent, width, height):
         """绘制日志打印控件"""
@@ -1186,7 +1219,7 @@ class OneOsGui:
         # 串口状态-key
         tk.Label(parent, text='串口状态：', bg='white').pack(side=tk.LEFT, padx=2)
         # 串口状态-value  TODO 根据串口是否已连接(开始按钮)来改变串口状态
-        tk.Label(parent, text='断开', bg='white').pack(side=tk.LEFT)
+        tk.Label(parent, textvariable=self.__serial_port_configuration.state, bg='white').pack(side=tk.LEFT)
         tk.Label(parent, text='', bg='white').pack(side=tk.LEFT, padx=25)
         # 运行状态-key
         tk.Label(parent, text='运行状态：', bg='white').pack(side=tk.LEFT, padx=2)
