@@ -78,7 +78,7 @@ class OneOsGui:
 
     def init_values(self):
         """定义属性初始值"""
-        self.__mode_type.set('product')  # 默认模式选择为生产模式
+        self.__mode_type.set('PRODUCT')  # 默认模式选择为生产模式
         self.__operate_type.set('HID')  # 默认操作工位为读HID
         self.__operate_desc.set('读设备ID')  # 默认操作工位描述
         self.__operate_desc_detail.set('  从设备读取物理识别码，并保存到本地文件')
@@ -148,7 +148,7 @@ class OneOsGui:
             stream_controller = cb_stream_controller.get()
             self.__serial_port_configuration.stream_controller = stream_controller
             print(f'流控： {stream_controller}')
-            self.__conn_type.swith_to_port()  # 通信方式更新为串口通信
+            self.__conn_type.swith_to_port(self.__mode_type.get())  # 通信方式更新为串口通信
             self.__update_serial_port_info(port, baudrate, data_digit, check_digit, stop_digit,
                                            stream_controller)
             if parent is not None:
@@ -206,7 +206,7 @@ class OneOsGui:
             else:
                 tkinter.messagebox.showwarning(title='license存储区域大小', message='需要为正整数')
                 return
-            self.__conn_type.swith_to_jlink()  # 通信方式更新为J-Link通信
+            self.__conn_type.swith_to_jlink(self.__mode_type.get())  # 通信方式更新为J-Link通信
             if parent is not None:
                 parent.destroy()
         return inner
@@ -454,27 +454,27 @@ class OneOsGui:
             frame_confirm.pack(side=tk.TOP, fill=tk.X)
         return inner
 
-    def _draw_jlink_configuration(self, parent):  # 给定界面，绘制jlink配置项 TODO 还可以添加字体大小颜色、padx、pady等参数
+    def _draw_jlink_configuration(self, parent, width=30, bg='SystemButtonFace', padx=80):  # 给定界面，绘制jlink配置项 TODO 还可以添加字体大小颜色、padx、pady等参数
         """给定界面，绘制jlink通信配置项"""
         # 连接端口
         def get_serial_no():
-            return ['79765170989']
+            return ['79765170989']  # TODO 返回真实的仿真器列表
 
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='连接端口').pack(side=tk.LEFT)
-        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=30,
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='连接端口', bg=bg).pack(side=tk.LEFT)
+        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=width,
                                     state='readonly')  # TODO 通过pylink获取当前接入的jlink仿真器的序列号
         if self.__jlink_configuration.serial_no != '':  # 上一次已经确定过了仿真器序列号
             cb_serial_no.current(0)
-        cb_serial_no.pack(side=tk.LEFT, padx=80)
+        cb_serial_no.pack(side=tk.LEFT, padx=padx)
         frame.pack(pady=6, fill=tk.X)
         # 接口模式
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='接口模式').pack(side=tk.LEFT)
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='接口模式', bg=bg).pack(side=tk.LEFT)
         interface_type_values = ['JTAG', 'SWD']
-        cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=30, state='readonly')
+        cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=width, state='readonly')
         cb_interface_type.current(interface_type_values.index(self.__jlink_configuration.interface_type))
-        cb_interface_type.pack(side=tk.LEFT, padx=80)
+        cb_interface_type.pack(side=tk.LEFT, padx=padx)
         frame.pack(pady=6, fill=tk.X)
         # 速率(kHZ)
         def update_cb_rate(event):
@@ -491,38 +491,51 @@ class OneOsGui:
                     rate_values = rate_values[:-1]
                 cb_rate.configure(state='readonly', value=rate_values)
 
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='速率(kHZ)').pack(side=tk.LEFT)
+        frame = tk.Frame(parent, bg=bg)
+        tk.Label(frame, text='速率(kHZ)', bg=bg).pack(side=tk.LEFT)
         rate_values = ['5', '10', '20', '30', '50', '100', '200', '300', '400', '500', '600', '750', '900', '1000',
                        '1334', '1600', '2000', '2667', '3200', '4000', '4800', '5334', '6000', '8000',
                        '9600', '12000', 'custom']
         if self.__jlink_configuration.rate not in rate_values:
             rate_values.insert(0, self.__jlink_configuration.rate)
-        cb_rate = ttk.Combobox(frame, value=rate_values, width=30, state='readonly')
+        cb_rate = ttk.Combobox(frame, value=rate_values, width=width, state='readonly')
         cb_rate.bind('<<ComboboxSelected>>', update_cb_rate)
         cb_rate.current(rate_values.index(self.__jlink_configuration.rate))
-        cb_rate.pack(side=tk.LEFT, padx=73)
+        cb_rate.pack(side=tk.LEFT, padx=padx-7)
         frame.pack(pady=6, fill=tk.X)
         # MCU
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='MCU                        ').pack(side=tk.LEFT, padx=0)
-        entry_mcu = tk.Entry(frame, show=None, state='disabled', textvariable=self.__mcu_info.device, width=33)
+        frame = tk.Frame(parent, bg=bg)
+        if bg == 'white':
+            tk.Label(frame, text='MCU             ', bg=bg).pack(side=tk.LEFT, padx=0)
+        else:
+            tk.Label(frame, text='MCU                        ', bg=bg).pack(side=tk.LEFT, padx=0)
+        entry_mcu = tk.Entry(frame, show=None, state='disabled', bg=bg,
+                             textvariable=self.__mcu_info.device, width=width+3)
         entry_mcu.pack(side=tk.LEFT, padx=2)
         button_mcu = tk.Button(frame, text='...', width=3, height=1, command=self.alter_mcu_win(frame))
         button_mcu.pack(side=tk.LEFT)
         frame.pack(pady=6, fill=tk.X)
         # License存储地址
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='License存储地址').pack(side=tk.LEFT)
+        frame = tk.Frame(parent, bg=bg)
+        if bg == 'white':
+            tk.Label(frame, text='存储地址', bg=bg).pack(side=tk.LEFT)
+        else:
+            tk.Label(frame, text='License存储地址', bg=bg).pack(side=tk.LEFT)
         addr_value = tk.StringVar()
-        addr_value.set('0x8000000')
-        entry_license_addr = tk.Entry(frame, show=None, textvariable=addr_value, width=33)  # TODO 默认值应该时动态获取的
-        entry_license_addr.pack(side=tk.LEFT, padx=37)
+        addr_value.set('0x80000000')
+        entry_license_addr = tk.Entry(frame, show=None, textvariable=addr_value, width=width+3)  # TODO 默认值应该时动态获取的
+        if bg == 'white':
+            entry_license_addr.pack(side=tk.LEFT, padx=37)
+        else:
+            entry_license_addr.pack(side=tk.LEFT, padx=37)
         frame.pack(pady=6, fill=tk.X)
         # License存储区域大小
-        frame = tk.Frame(parent)
-        tk.Label(frame, text='License存储区域大小').pack(side=tk.LEFT)
-        entry_license_size = tk.Entry(frame, show=None, textvariable=self.__mcu_info.flash_size, width=33)
+        frame = tk.Frame(parent, bg=bg)
+        if bg == 'white':
+            tk.Label(frame, text='存储区域大小', bg=bg).pack(side=tk.LEFT)
+        else:
+            tk.Label(frame, text='License存储区域大小', bg=bg).pack(side=tk.LEFT)
+        entry_license_size = tk.Entry(frame, show=None, textvariable=self.__mcu_info.flash_size, width=width+3)
         entry_license_size.pack(side=tk.LEFT, padx=12)
         frame.pack(pady=6, fill=tk.X)
         return cb_serial_no, cb_interface_type, cb_rate, entry_mcu, entry_license_addr, entry_license_size
@@ -741,8 +754,8 @@ class OneOsGui:
         """弹出J-Link配置项窗口"""
         parent.title('J-Link设置')
         center_window(parent, *(500, 300))
-        tk.Label(parent, bg='red').pack(side=tk.LEFT, fill=tk.Y, padx=1)  # 左边填充
-        tk.Label(parent, bg='red').pack(side=tk.RIGHT, fill=tk.Y, padx=1)  # 右边填充
+        tk.Label(parent).pack(side=tk.LEFT, fill=tk.Y, padx=1)  # 左边填充
+        tk.Label(parent).pack(side=tk.RIGHT, fill=tk.Y, padx=1)  # 右边填充
         # 绘制J-Link配置项界面，并获取连接端口、接口模式、速率、芯片名称、license存储地址、license存储区域大小控件，供确定按钮使用
         cb_serial_no, cb_interface_type, cb_rate, entry_mcu, \
         entry_license_addr, entry_license_size = self._draw_jlink_configuration(parent)
@@ -1130,15 +1143,23 @@ class OneOsGui:
 
         def swith_to_port_conn(event):
             """点击串口按钮"""
+            if self.__conn_type.conn_type.get() == '串口通信' and self.__conn_type.mode == self.__mode_type.get():
+                return
             print('更新为串口通信')
-            self.__conn_type.swith_to_port()  # 更新为串口通信
+            frame_3.pack_forget()
+            frame_2.pack(side=tk.TOP, fill=tk.BOTH)
+            self.__conn_type.swith_to_port(self.__mode_type.get())  # 更新为串口通信
             label_port.configure(fg=_ACTIVE_COLOR, bg='white')
             label_jlink.configure(fg='gray', bg=_BACKGOUND)
 
         def swith_to_jlink_conn(event):
             """点击J-Link按钮"""
+            if self.__conn_type.conn_type.get() == 'J-Link通信' and self.__conn_type.mode == self.__mode_type.get():
+                return
             print('更新为jlink通信')
-            self.__conn_type.swith_to_jlink()
+            frame_2.pack_forget()
+            frame_3.pack(side=tk.TOP, fill=tk.BOTH)
+            self.__conn_type.swith_to_jlink(self.__mode_type.get())
             label_jlink.configure(fg=_ACTIVE_COLOR, bg='white')
             label_port.configure(fg='gray', bg=_BACKGOUND)
 
@@ -1183,6 +1204,29 @@ class OneOsGui:
         elif type == 'debug':
             self.__serial_port_info_debug = SerialPortInfo(cb_port, cb_baudrate, cb_data,
                                                            cb_check, cb_stop, cb_stream_controller)
+
+        # 展示以及配置项的frame
+        frame_3 = tk.Frame(parent, bg='white')
+        ## 描述信息
+        if type == 'product':  # 生产模式
+            tk.Label(frame_3, textvariable=self.__conn_type.conn_type, font=('微软雅黑', 12),
+                     bg='white').pack(padx=12, pady=13, anchor='nw')
+        elif type == 'debug':  # 调试模式需要添加一个连接的按钮
+            frame_3_t = tk.Frame(frame_3, bg='white')
+            ### 左边放置描述信息
+            frame_3_t_l = tk.Frame(frame_3_t, bg='white')
+            tk.Label(frame_3_t_l, textvariable=self.__conn_type.conn_type, font=('微软雅黑', 12),
+                     bg='white').pack(padx=12, pady=13, anchor='nw')
+            frame_3_t_l.pack(side=tk.LEFT, fill=tk.Y)
+            ### 右边放置连接按钮
+            frame_3_t_r = tk.Frame(frame_3_t, bg='white')
+            tk.Button(frame_3_t_r, text='J-Link连 接', bg='#D7D7D7').pack(side=tk.BOTTOM, padx=50, pady=5)
+            frame_3_t_r.pack(side=tk.RIGHT, fill=tk.Y)
+            frame_3_t.pack(side=tk.TOP, fill=tk.X)
+
+        ## 配置信息
+        cb_serial_no, cb_interface_type, cb_rate, entry_mcu, entry_license_addr, entry_license_size = \
+            self._draw_jlink_configuration(frame_3, bg='white', width=15, padx=37)
 
     def draw_frame_log_shower(self, parent, width, height):
         """绘制日志打印控件"""
