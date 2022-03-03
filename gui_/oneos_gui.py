@@ -8,6 +8,7 @@ from tkinter import ttk
 from tkinter import filedialog
 
 from serial_.pyboard import PyBoard
+from jlink_.pyjlink import JLinkCOM
 from utils.entities import ModeEnum, OperateEnum, ConnType  # 操作方式、工位、通信方式
 from utils.entities import SerialPortConfiguration, SerialPortInfo, JLinkConfiguration, LogConfiguration, MCUInfo, \
     UKeyInfo# 串口配置项，串口配置控件，JLink配置项，日志配置项，MCU信息
@@ -64,6 +65,7 @@ class OneOsGui:
 
     def init_types(self):
         """定义属性类型"""
+        self.jlink_com = JLinkCOM()  # 初始化jlink对象
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
         self.__operate_type = tk.StringVar()  # 操作工位(读HID/写License-从License文件/写License-从UKey)
         self.__operate_desc = tk.StringVar()  # 操作工位的描述
@@ -457,13 +459,11 @@ class OneOsGui:
     def _draw_jlink_configuration(self, parent, width=30, bg='SystemButtonFace', padx=80):  # 给定界面，绘制jlink配置项 TODO 还可以添加字体大小颜色、padx、pady等参数
         """给定界面，绘制jlink通信配置项"""
         # 连接端口
-        def get_serial_no():
-            return ['79765170989']  # TODO 返回真实的仿真器列表
 
         frame = tk.Frame(parent, bg=bg)
         tk.Label(frame, text='连接端口', bg=bg).pack(side=tk.LEFT)
-        cb_serial_no = ttk.Combobox(frame, value=get_serial_no, width=width,
-                                    state='readonly')  # TODO 通过pylink获取当前接入的jlink仿真器的序列号
+        cb_serial_no = ttk.Combobox(frame, value=self.jlink_com.emulators, width=width,
+                                    state='readonly')
         if self.__jlink_configuration.serial_no != '':  # 上一次已经确定过了仿真器序列号
             cb_serial_no.current(0)
         cb_serial_no.pack(side=tk.LEFT, padx=padx)
