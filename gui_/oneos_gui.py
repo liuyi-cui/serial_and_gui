@@ -7,11 +7,12 @@ from datetime import datetime
 from tkinter import ttk
 from tkinter import filedialog
 
-from serial_.pyboard import PyBoard
-from jlink_.pyjlink import JLinkCOM
+from serial_.pyboard import PyBoard  # 串口通信对象
+from jlink_.pyjlink import JLinkCOM  # JLink通信对象
+from ukey_.pyukey import PyUKey  # UKey通信对象
 from utils.entities import ModeEnum, OperateEnum, ConnType  # 操作方式、工位、通信方式
-from utils.entities import SerialPortConfiguration, SerialPortInfo, JLinkConfiguration, LogConfiguration, MCUInfo, \
-    UKeyInfo# 串口配置项，串口配置控件，JLink配置项，日志配置项，MCU信息
+from utils.entities import SerialPortConfiguration, SerialPortInfo, JLinkConfiguration, JLinkInfo, \
+    LogConfiguration, MCUInfo, UKeyInfo  # 串口配置项，串口配置控件，JLink配置项，日志配置项，MCU信息
 from utils.file_utils import check_file_suffix
 from utils.utility import is_hex
 
@@ -66,6 +67,7 @@ class OneOsGui:
     def init_types(self):
         """定义属性类型"""
         self.jlink_com = JLinkCOM()  # 初始化jlink对象
+        self.ukey_com = PyUKey()  # 初始化ukey对象
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
         self.__operate_type = tk.StringVar()  # 操作工位(读HID/写License-从License文件/写License-从UKey)
         self.__operate_desc = tk.StringVar()  # 操作工位的描述
@@ -73,10 +75,12 @@ class OneOsGui:
         self.__operate_desc_detail = tk.StringVar()  # 操作工位的详细描述
         self.__conn_type = ConnType()
         self.log_shower_product = tk.Text()  # 操作关键信息打印控件(同日志共享记录信息)
+        self.statistic_product_label = tk.Label()  # 展示操作结果(成功/失败...)的标签控件
         self.temp_mcu_info = ()
-        self.__serial_port_info_config = None  # 配置栏的串口控件
         self.__serial_port_info_product = None  # 生产界面的串口控件
         self.__serial_port_info_debug = None  # 调试界面的串口控件
+        self.__jlink_info_product = None  # 生产界面的JLink控件
+        self.__jlink_info_debug = None  # 调试界面的JLink控件
 
     def init_values(self):
         """定义属性初始值"""
@@ -92,6 +96,18 @@ class OneOsGui:
         self.__mcu_info = MCUInfo()  # mcu相关信息
         self.__filepath_hid = tk.StringVar()  # HID存储文件路径
         self.__filepath_license = tk.StringVar()  # License存储文件路径
+
+    def __update_statistic(self, text='', fg='white'):
+        """
+        更新结果展示
+        Args:
+            text: 结果文字(成功/失败/停止/已完成/'')
+            fg:
+
+        Returns:
+
+        """
+        self.statistic_product_label.configure(text=text, fg=fg)
 
     def __update_serial_port_info(self, port, baudrate, data_digit, check_digit, stop_digit,
                                   stream_controller):
@@ -112,6 +128,83 @@ class OneOsGui:
                                              stream_controller)
         self.__serial_port_info_product.update(port, baudrate, data_digit, check_digit, stop_digit,
                                                stream_controller)
+
+    def __update_jlink_info(self, serial_no, interface_type, rate, device,
+                            license_addr, license_size):
+        """
+        更新jlink控件的展示信息
+        Args:
+            serial_no:
+            interface_type:
+            rate:
+            device:
+            license_addr:
+            license_size:
+
+        Returns:
+
+        """
+        self.__jlink_info_product.update(serial_no, interface_type, rate, device,
+                                         license_addr, license_size)
+        self.__jlink_info_debug.update(serial_no, interface_type, rate, device,
+                                       license_addr, license_size)
+
+
+    def __verify_file(self):
+        """
+        生产模式进行正式通讯之前，确保hid记录文件或者license记录文件或者UKey连接已经创建
+        Returns:
+            message: 通过 None；不通过 str
+
+        """
+        message = None
+        if self.__operate_type.get() == 'HID':  # 校验是否选择了hid存储文件
+            if not self.__filepath_hid.get():
+                message = '请选择设备ID存储文件...'
+        elif self.__operate_type.get() == 'LICENSE_FILE':  # 校验是否选择了license存储文件
+            if not self.__filepath_license.get():
+                message = '请选择设备License存储文件...'
+        elif self.__operate_type.get() == 'LICENSE_UKEY':  # 校验UKey连接是否创建并且已经过PIN码认证
+            if not self.ukey_com.is_connected:
+                message = '请连接UKey并进行PIN码验证'
+        return message
+
+    def __verify_conn(self):
+        """
+        生产模式进行正式通讯之前，验证通讯所需参数是否配置齐全
+        Returns:
+            message: 通过 None；不通过 str
+        """
+        message = None
+        if self.__conn_type.conn_type.get() == 'J-Link通信':  # J-Link通信的相关配置验证
+            print(self.__jlink_configuration.serial_no)
+            print(self.__jlink_configuration.interface_type)
+            print(self.__jlink_configuration.rate)
+            print(self.__jlink_configuration.mcu)
+            print(self.__jlink_configuration.hid_addr)
+            print(self.__jlink_configuration.license_addr)
+            print(self.__jlink_configuration.license_size_stored)
+        elif self.__conn_type.conn_type.get() == '串口通信':  # 串口通信的相关配置验证
+            if not self.__serial_port_configuration.port:
+                message = '请选择连接串口号'
+                return message
+            if not self.__serial_port_configuration.baud_rate and not \
+                str(self.__serial_port_configuration.baud_rate).isdigit():
+                message = '请选择正确的波特率'
+                return message
+            if not self.__serial_port_configuration.data_digit:
+                message = '请选择数据位'
+                return message
+            if not self.__serial_port_configuration.check_digit:
+                message = '请选择校验位'
+                return message
+            if not self.__serial_port_configuration.stop_digit:
+                message = '请选择停止位'
+                return message
+            if not self.__serial_port_configuration.stream_controller:
+                message = '请选择流控'
+                return message
+        return message
 
     def port_configuration_confirm(self, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller, parent=None):
         """
@@ -209,6 +302,8 @@ class OneOsGui:
                 tkinter.messagebox.showwarning(title='license存储区域大小', message='需要为正整数')
                 return
             self.__conn_type.swith_to_jlink(self.__mode_type.get())  # 通信方式更新为J-Link通信
+            self.__update_jlink_info(serial_no, interface_type, rate, self.__mcu_info.device,
+                                     license_addr, license_size)
             if parent is not None:
                 parent.destroy()
         return inner
@@ -239,6 +334,11 @@ class OneOsGui:
     def _draw_serial_port_configuration(self, parent, width=35, bg='SystemButtonFace'):  # 给定界面，绘制串口通信配置项 TODO 还可以添加字体大小、padx、pady等参数
         """给定界面，绘制串口通信配置项"""
         # 串口号
+
+        def update_portlist(event):
+            cb_port.configure(value=self.__serial_port_configuration.port_list)
+
+
         frame = tk.Frame(parent, bg=bg)
         tk.Label(frame, text='串口号', bg=bg).pack(side=tk.LEFT, padx=10)
         cb_port = ttk.Combobox(frame, value=self.__serial_port_configuration.port_list, width=width,
@@ -246,6 +346,9 @@ class OneOsGui:
         if self.__serial_port_configuration.port in self.__serial_port_configuration.port_list:
             index_ = self.__serial_port_configuration.port_list.index(self.__serial_port_configuration.port)
             cb_port.current(index_)
+        cb_port.bind('<Button-1>', update_portlist)
+        if bg == 'white':  # 主界面，绑定下拉方法
+            cb_port.bind('<<ComboboxSelected>>', self.__serial_port_configuration.update_port(cb_port))
         cb_port.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 波特率
@@ -261,6 +364,8 @@ class OneOsGui:
                 if '请手动输入波特率' in baudrate_values:
                     baudrate_values.pop(-1)
                 cb_baudrate.configure(state='readonly', value=baudrate_values)
+            if bg == 'white':
+                self.__serial_port_configuration.update_baudrate(cb_baudrate.get())
 
         frame = tk.Frame(parent, bg=bg)
         tk.Label(frame, text='波特率', bg=bg).pack(side=tk.LEFT, padx=10)
@@ -280,6 +385,8 @@ class OneOsGui:
         cb_data = ttk.Combobox(frame, value=data_digit_values,
                                width=width, state='readonly')
         cb_data.current(data_digit_values.index(self.__serial_port_configuration.data_digit))
+        if bg == 'white':
+            cb_data.bind('<<ComboboxSelected>>', self.__serial_port_configuration.update_datadigit(cb_data))
         cb_data.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 校验位
@@ -289,6 +396,8 @@ class OneOsGui:
         cb_check = ttk.Combobox(frame, value=check_digit_values,
                                 width=width, state='readonly')
         cb_check.current(check_digit_values.index(self.__serial_port_configuration.check_digit))
+        if bg == 'white':
+            cb_check.bind('<<ComboboxSelected>>', self.__serial_port_configuration.update_checkdigit(cb_check))
         cb_check.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 停止位
@@ -296,6 +405,9 @@ class OneOsGui:
         tk.Label(frame, text='停止位', bg=bg).pack(side=tk.LEFT, padx=10)
         cb_stop = ttk.Combobox(frame, value=['1', ], width=width, state='readonly')
         cb_stop.current(0)
+        if bg == 'white':
+            cb_stop.bind('<<ComboboxSelected>>',
+                         self.__serial_port_configuration.update_stopdigit(cb_stop))
         cb_stop.pack(side=tk.LEFT, padx=10)
         frame.pack(pady=6)
         # 流控
@@ -305,6 +417,9 @@ class OneOsGui:
         cb_stream_controller = ttk.Combobox(frame, value=stream_controller_values,
                                             width=width, state='readonly')
         cb_stream_controller.current(stream_controller_values.index(self.__serial_port_configuration.stream_controller))
+        if bg == 'white':
+            cb_stream_controller.bind('<<ComboboxSelected>>',
+                                      self.__serial_port_configuration.update_streamcontroller(cb_stream_controller))
         cb_stream_controller.pack(pady=6, padx=10)
         frame.pack(pady=6)
         return cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller
@@ -460,12 +575,17 @@ class OneOsGui:
         """给定界面，绘制jlink通信配置项"""
         # 连接端口
 
+        def update_serial_no(event):
+            cb_serial_no.configure(value=self.jlink_com.emulators)
+
         frame = tk.Frame(parent, bg=bg)
         tk.Label(frame, text='连接端口', bg=bg).pack(side=tk.LEFT)
         cb_serial_no = ttk.Combobox(frame, value=self.jlink_com.emulators, width=width,
                                     state='readonly')
-        if self.__jlink_configuration.serial_no != '':  # 上一次已经确定过了仿真器序列号
-            cb_serial_no.current(0)
+        if self.__jlink_configuration.serial_no in self.jlink_com.emulators:
+            index_ = self.jlink_com.emulators.index(self.__jlink_configuration.serial_no)
+            cb_serial_no.current(index_)
+        cb_serial_no.bind('<Button-1>', update_serial_no)
         cb_serial_no.pack(side=tk.LEFT, padx=padx)
         frame.pack(pady=6, fill=tk.X)
         # 接口模式
@@ -962,7 +1082,7 @@ class OneOsGui:
         frame_1.pack(side=tk.TOP, expand=True, fill=tk.X)
         ## 文本选择框
         frame_2 = tk.Frame(frame_hid_display, bg='white')
-        filepath_entry = tk.Entry(frame_2, textvariable=self.__filepath_hid, width=20)  # TODO 创建一个对象属性记录这些相关信息
+        filepath_entry = tk.Entry(frame_2, textvariable=self.__filepath_hid, width=20)
         filepath_entry.pack(side=tk.LEFT, padx=18, pady=18)
         ## 按钮
         def record_filepath_hid():
@@ -977,7 +1097,7 @@ class OneOsGui:
                     self.__filepath_hid.set(filepath)
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
-                                               message='请选择Excel类型文件')
+                                                   message='请选择Excel类型文件')
 
         tk.Button(frame_2, text='选择', width=5, bg='#D7D7D7', command=record_filepath_hid).pack(side=tk.LEFT,
                                                                                                padx=6)
@@ -1119,6 +1239,16 @@ class OneOsGui:
         def start():
             """点击开始按钮的业务流程"""
             if button_text.get() == '开  始':  # TODO 继续往下写实际的业务逻辑
+                message_file = self.__verify_file()
+                if message_file:
+                    tk.messagebox.showwarning(title='WARNING',
+                                              message=message_file)
+                    return
+                message_conn = self.__verify_conn()
+                if message_conn:
+                    tk.messagebox.showwarning(title='WARNING',
+                                              message=message_conn)
+                # TODO 具体的通信逻辑
                 button_text.set('停  止')
                 btn_start.configure(fg='red')
             else:
@@ -1134,7 +1264,9 @@ class OneOsGui:
     def draw_frame_statistic(self, parent):
         # 执行结果信息展示界面
         # TODO 此处应该使用变量，并且记录该Label，插入时候控制字体颜色
-        tk.Label(parent, text='成 功', font=('微软雅黑', 24), bg='white', fg='green').pack(side=tk.TOP, pady=45)
+        self.statistic_product_label = tk.Label(parent, font=('微软雅黑', 24), bg='white')
+        self.__update_statistic()
+        self.statistic_product_label.pack(side=tk.TOP, pady=45)
 
     # 通信方式(串口\J-Link)展示以及配置界面
     def draw_frame_connected_type(self, parent, type='product'):
@@ -1227,6 +1359,13 @@ class OneOsGui:
         ## 配置信息
         cb_serial_no, cb_interface_type, cb_rate, entry_mcu, entry_license_addr, entry_license_size = \
             self._draw_jlink_configuration(frame_3, bg='white', width=15, padx=37)
+        if type == 'product':
+            self.__jlink_info_product = JLinkInfo(cb_serial_no, cb_interface_type, cb_rate, entry_mcu,
+                                                  entry_license_addr, entry_license_size)
+        elif type == 'debug':
+            self.__jlink_info_debug = JLinkInfo(cb_serial_no, cb_interface_type, cb_rate, entry_mcu,
+                                                entry_license_addr, entry_license_size)
+
 
     def draw_frame_log_shower(self, parent, width, height):
         """绘制日志打印控件"""
