@@ -3,7 +3,7 @@
 import time
 import tkinter as tk
 import tkinter.messagebox  # 弹窗
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Thread
 from tkinter import ttk
 from tkinter import filedialog
@@ -26,6 +26,8 @@ _BACKGOUND = 'gainsboro'  # 默认背景色
 _ACTIVE_COLOR = 'green'  # 默认激活状态颜色
 _NORMAL_COLOR = 'black'  # 默认正常状态颜色
 SIZE_POPUPS = (400, 280)  # 弹出窗体大小
+MAX_RETRY_TIME = 5  # 最大重复操作次数
+MAX_INTERVAL_SECOND = timedelta(30)  # 连续失败的最长持续时间为30s
 
 
 def center_window(win, width=None, height=None):
@@ -91,6 +93,7 @@ class OneOsGui:
         self.entry_mcu_debug = None
         self.entry_license_addr_debug = None
         self.entry_license_size_debug = None
+        self.btn_start = None  # 生产模式下的开始按钮
         self.tree_hid = None  # 生产模式批量读ID操作结果展示列表
         self.tree_license = None  # 生产模式批量写License操作结果展示列表
         self.succ_hid = []  # 记录成功的设备ID
@@ -110,6 +113,8 @@ class OneOsGui:
         self.__mcu_info = MCUInfo()  # mcu相关信息
         self.__filepath_hid = tk.StringVar()  # HID存储文件路径
         self.__filepath_license = tk.StringVar()  # License存储文件路径
+        self.operate_start_time = datetime.now()  # 生成模式中，操作的开始时间
+        self.retry_time = 0  # 失败的持续次数
 
     def __update_statistic(self, text='', fg='white'):
         """
@@ -273,16 +278,20 @@ class OneOsGui:
         # 首先要判断插入的数据是否已经在tree中存在
         key_word = ''
         if len(content) == 2:  # 读ID的操作结果
-            key_word = {content[0]}  # 设备ID
+            key_word = [content[0]]  # 设备ID
         elif len(content) == 3:  # 写License的操作结果
-            key_word = {content[0], content[1]}  # 设备ID，组件ID
+            key_word = [content[0], content[1]]  # 设备ID，组件ID
         else:
             logger.warning(f'获取到非预期的结果描述: {content}')
         for i in tree.get_children():
-            values = tree.item[i]['values']
-            if key_word.issubset(set(values)):  # 是子集
-                tree.delelte(i)
-                break
+            values = [str(i) for i in tree.item(i)['values'][1:len(key_word)+1]]
+            idx_ = tree.item(i)['values'][0]
+            if key_word == values:  # 是子集
+                if content[-1] == '失败':
+                    tree.item(i, values=(idx_, *content), tag='tag_failed')
+                else:
+                    tree.item(i, values=(idx_, *content))
+                return
 
         length = len(tree.get_children())
         content = (length+1, *content)
@@ -1189,6 +1198,7 @@ class OneOsGui:
             if filepath != '':
                 if check_file_suffix(filepath):  # 属于excel文件
                     self.__filepath_hid.set(filepath)
+                    self.succ_hid = read_HID(filepath)  # 将已经存储过的hid读出来
                 else:
                     tkinter.messagebox.showwarning(title='Warning',
                                                    message='请选择Excel类型文件')
@@ -1328,15 +1338,13 @@ class OneOsGui:
                     elif self.__operate_type.get() == 'LICENSE_UKEY':  # 根据UKey进行写license操作
                         self.write_license_by_ukey()
                 # 因为开始按钮只存在于生产模式界面，所以没有其余分支
-                button_text.set('停  止')
-                btn_start.configure(fg='red')
+                self.__turn_on()
             else:
-                button_text.set('开  始')
-                btn_start.configure(fg='darkgreen')
+                self.__turn_off()
 
-        btn_start = tk.Button(frame, textvariable=button_text, font=('微软雅黑', 12, 'bold'), fg='darkgreen', bg='lightgrey',
+        self.btn_start = tk.Button(frame, text='开  始', font=('微软雅黑', 12, 'bold'), fg='darkgreen', bg='lightgrey',
                   width=10, height=1, command=start)
-        btn_start.pack(side=tk.LEFT, pady=20, padx=20)
+        self.btn_start.pack(side=tk.LEFT, pady=20, padx=20)
 
         frame.pack(side=tk.TOP, fill=tk.X)
 
@@ -1798,11 +1806,11 @@ class OneOsGui:
 
     def __turn_on(self):
         """连接到串口/Jlink时，更新状态信息"""
-        pass
+        self.btn_start.configure(text='停  止', fg='red')
 
     def __turn_off(self):
         """断开串口/Jlink连接时，更新状态信息"""
-        pass
+        self.btn_start.configure(text='开  始', fg='darkgreen')
 
     #### 以上为界面代码，以下为动态逻辑代码
     def connect_to_port(self):
@@ -1832,16 +1840,40 @@ class OneOsGui:
         self.port_com.close()
         self.jlink_com.close()
 
-    def read_id(self):
+    def read_id(self, if_keep=True):
         """
         读设备ID操作
+        if_keep:  是否是持续操作
         Returns:
 
         """
         if self.__conn_type.conn_type.get() == '串口通信':
-            self.read_id_port()
+            if if_keep:
+                self.retry_time = 0
+                self.operate_start_time = datetime.now()
+                while True:
+                    self.__update_statistic()
+                    time.sleep(1)
+                    if self.retry_time >= MAX_RETRY_TIME:
+                        self.log_shower_insert('连接未操作时间过长，自动断开连接\n\n', tag='warn')
+                        self.__update_statistic('停 止', 'blue')
+                        self.__turn_off()
+                        break
+                    if (datetime.now() - self.operate_start_time) > MAX_INTERVAL_SECOND:
+                        self.log_shower_insert('持续失败时间超时，自动断开连接\n\n', tag='warn')
+                        self.__update_statistic('停 止', 'blue')
+                        self.__turn_off()
+                        break
+                    self.read_id_port()
+                    self.disconnect_to_board()
+                    time.sleep(1)
+            else:
+                self.read_id_port()  # 进行一次操作
         elif self.__conn_type.conn_type.get() == 'J-Link通信':
-            self.read_id_jlink()
+            if if_keep:
+                pass
+            else:
+                self.read_id_jlink()  # 只进行一次操作
 
     def read_id_port(self):
         """
@@ -1855,16 +1887,19 @@ class OneOsGui:
                 hid_response = self.port_com.get_HID()
             except SerialException as e:
                 logger.warning('串口访问异常', exc_info=e)
+                self.__update_statistic('失 败', fg='red')
                 self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
                 self.disconnect_to_board()
                 return
             except Exception as e:
                 logger.warning('串口访问异常', e)
+                self.__update_statistic('失 败', fg='red')
                 self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
                 self.disconnect_to_board()
                 return
             else:
                 if hid_response is None:
+                    self.__update_statistic('失 败', fg='red')
                     self.log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
                     self.disconnect_to_board()
                     return
@@ -1872,6 +1907,7 @@ class OneOsGui:
             try:
                 board_protocol = parse_protocol(hid_response)
             except Exception as e:
+                self.__update_statistic('失 败', fg='red')
                 self.log_shower_insert(f'解析及校验HID response失败\n', tag='error')
                 self.disconnect_to_board()
                 return
@@ -1888,6 +1924,7 @@ class OneOsGui:
                     logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
                     self.log_shower_insert(f'hid读取错误, '
                                                 f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
+                self.__update_statistic('失 败', fg='red')
                 self.log_shower_insert(f'解析及校验 ID response失败\n', tag='error')
                 self.disconnect_to_board()
                 time.sleep(1)
@@ -1898,7 +1935,11 @@ class OneOsGui:
             logger.info(f'添加ID： {hid_value}')
             self.log_shower_insert(f'记录设备{hid_value}到表格\n')
             if hid_value in self.succ_hid:
+                self.tree_insert((str(hid_value), '成功'), self.tree_hid)
+                self.retry_time += 1
+                self.__update_statistic('已完成', fg='green')
                 self.log_shower_insert(f'设备ID已经存储完成，请更换设备...\n', tag='confirm')
+                time.sleep(3)
                 return
             try:
                 record_HID_activated(hid_value, Path(self.__filepath_hid.get()))
@@ -1907,9 +1948,11 @@ class OneOsGui:
                     self.fail_hid.append(hid_value)
                     self.tree_insert((hid_value, '失败'), self.tree_hid)
                 logger.exception(e)
+                self.__update_statistic('失 败', fg='red')
                 self.log_shower_insert(f'设备ID存储失败\n', tag='error')
                 self.disconnect_to_board()
             else:
+                self.operate_start_time = datetime.now()
                 self.succ_hid.append(hid_value)
                 self.tree_insert((hid_value, '成功'), self.tree_hid)
                 self.__update_statistic('成 功', fg='green')
