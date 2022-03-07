@@ -3,6 +3,7 @@
 实体类
 """
 import tkinter as tk
+import serial.tools.list_ports
 from collections import namedtuple
 from enum import Enum
 
@@ -115,12 +116,14 @@ class ConnType:
     """通信方式"""
     def __init__(self):
         self.conn_type = tk.StringVar()
-        self.swith_to_port()
+        self.swith_to_port('PRODUCT')
 
-    def swith_to_jlink(self):
+    def swith_to_jlink(self, mode):
+        self.mode = mode
         self.conn_type.set('J-Link通信')
 
-    def swith_to_port(self):
+    def swith_to_port(self, mode):
+        self.mode = mode
         self.conn_type.set('串口通信')
 
 
@@ -129,11 +132,74 @@ class SerialPortConfiguration:
 
     def __init__(self):
         self.port = ''  # 串口号
-        self.baud_rate = '115200'  # 波特率
-        self.data_digit = '8'  # 数据位
+        self.baud_rate = 115200  # 波特率
+        self.data_digit = 8  # 数据位
         self.check_digit = 'None'  # 校验位
-        self.stop_digit = '1'  # 停止位
+        self.stop_digit = 1  # 停止位
         self.stream_controller = 'None'  # 流控
+
+    @property
+    def port_list(self):
+        return self.get_list()
+
+    def get_list(self):
+        """获取串口列表"""
+        port_list = serial.tools.list_ports.comports()
+        port_list = [i.name for i in port_list]
+        if not port_list:
+            return ['']
+        return port_list
+
+    def update_port(self, cb_port):
+        print('port:', cb_port.get())
+        def inner(event):
+            print('更新串口', cb_port.get())
+            self.port = cb_port.get()
+        return inner
+
+    def update_baudrate(self, baud_rate):
+        def inner(event):
+            self.baud_rate = baud_rate
+        return inner
+
+    def update_datadigit(self, cb_data):
+        def inner(event):
+            self.data_digit = cb_data.get()
+        return inner
+
+    def update_checkdigit(self, cb_check):
+        def inner(event):
+            self.check_digit = cb_check.get()
+        return inner
+
+    def update_stopdigit(self, stop_digit):
+        def inner(event):
+            self.stop_digit = stop_digit
+        return inner
+
+    def update_streamcontroller(self, cb_stream_controller):
+        def inner(event):
+            self.stream_controller = cb_stream_controller.get()
+        return inner
+
+
+class SerialPortInfo:
+
+    def __init__(self, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller):
+        self.cb_port = cb_port  # 串口下拉框
+        self.cb_baudrate = cb_baudrate  # 波特率下拉框
+        self.cb_data = cb_data  # 数据位下拉框
+        self.cb_check = cb_check  # 校验位下拉框
+        self.cb_stop = cb_stop  # 停止位下拉框
+        self.cb_stream_controller = cb_stream_controller  # 流控下拉框
+
+    def update(self, port, baudrate, data_digit, check_digit, stop_digit, stream_controller):
+        self.cb_port.set(port)
+        self.cb_baudrate.set(baudrate)
+        self.cb_data.set(data_digit)
+        self.cb_check.set(check_digit)
+        self.cb_stop.set(stop_digit)
+        self.cb_stream_controller.set(stream_controller)
 
 
 class JLinkConfiguration:
@@ -147,6 +213,44 @@ class JLinkConfiguration:
         self.hid_addr = ''  # hid存储地址
         self.license_addr = ''  # license存储地址
         self.license_size_stored = ''  # license存储区域大小
+
+    def update_serial_no(self, cb_serial_no):
+
+        def inner(event):
+            self.serial_no = cb_serial_no.get()
+        return inner
+
+    def update_interface_type(self, cb_interface_type):
+
+        def inner(event):
+            self.interface_type = cb_interface_type.get()
+        return inner
+
+    def update_rate(self, rate):
+
+        def inner(event):
+            self.rate = rate
+        return inner
+
+
+class JLinkInfo:
+
+    def __init__(self, cb_serial_no, cb_interface_type, cb_rate, entry_mcu, entry_license_addr,
+                 entry_license_size):
+        self.cb_serial_no = cb_serial_no  # 端口控件
+        self.cb_interface_type = cb_interface_type  # 接口类型控件
+        self.cb_rate = cb_rate  # 速率控件
+        self.entry_mcu = entry_mcu  # mcu展示控件
+        self.entry_license_addr = entry_license_addr  # 写license开始地址控件
+        self.entry_license_size = entry_license_size  # license可用大小展示控件
+
+    def update(self, serial_no, interface_type, rate, mcu, license_addr, license_size):
+        self.cb_serial_no.set(serial_no)
+        self.cb_interface_type.set(interface_type)
+        self.cb_rate.set(rate)
+        self.entry_mcu.configure(text=mcu)
+        self.entry_license_addr.configure(text=license_addr)
+        self.entry_license_size.configure(text=license_size)
 
 
 class MCUInfo:
@@ -223,5 +327,10 @@ class UKeyInfo:
 
 
 if __name__ == '__main__':
-    mcu_info = MCUInfo()
-    print(mcu_info)
+    serial_port = SerialPortConfiguration()
+    import time
+    i = 0
+    while i < 10:
+        print('当前port为', serial_port.port)
+        time.sleep(1)
+        i += 1

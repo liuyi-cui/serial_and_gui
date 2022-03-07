@@ -3,6 +3,7 @@
 
 import serial.tools.list_ports
 import time
+import tkinter as tk
 
 from log import logger
 from serial_.conserial import ConSerial
@@ -17,26 +18,43 @@ class PyBoardException(Exception):
 
 class PyBoard:
 
-    @retry(logger)
-    def __init__(self, port: str, baudrate: int):
+    def __init__(self):
         self.con_serial = ConSerial()
-        logger.info(f'连接到开发板: {port} {baudrate}')
-        self.open(port, baudrate)
-        logger.info(f'连接到开发板完成')
-        self.is_open = False
-        self.__update_state()
+        self.status = tk.StringVar()
+        self.status.set('断开')
 
     def __update_state(self):
         self.is_open = self.con_serial.is_open
 
-    def open(self, port: str, baudrate: int):
-        self.con_serial.open(port, baudrate)
+    @retry(logger)
+    def open(self, port: str, baudrate: int, stopbits=1, parity='N',
+             bytesize=8, rtscts=False, xonxoff=False):
+        """
+        连接串口
+        Args:
+            port: 串口号
+            baudrate: 波特率
+            stopbits: 停止位
+            parity: 校验位
+            bytesize: 数据位
+            rtscts:
+            xonxoff:
+
+        Returns:
+
+        """
+        logger.info(f'连接串口 {port} {baudrate}, ')
+        self.con_serial.open(port, baudrate, stopbits=stopbits, parity=parity,
+                             bytesize=bytesize, rtscts=rtscts, xonxoff=xonxoff)
         self.__update_state()
+        self.status.set('已连接')
 
     def close(self):
-        self.con_serial.close()
-        self.is_open = False
-        self.__update_state()
+        if self.is_open:
+            self.con_serial.close()
+            self.is_open = False
+            self.__update_state()
+            self.status.set('断开')
 
     @retry(logger)
     def get_HID(self) -> str:  # TODO 添加日志

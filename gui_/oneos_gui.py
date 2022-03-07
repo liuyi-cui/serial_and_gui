@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
 """GUI操作界面"""
+import time
 import tkinter as tk
 import tkinter.messagebox  # 弹窗
-from collections import namedtuple
 from datetime import datetime
+from threading import Thread
 from tkinter import ttk
 from tkinter import filedialog
+from serial.serialutil import SerialException
+from pathlib import Path
 
 from serial_.pyboard import PyBoard  # 串口通信对象
 from jlink_.pyjlink import JLinkCOM  # JLink通信对象
 from ukey_.pyukey import PyUKey  # UKey通信对象
-from utils.entities import ModeEnum, OperateEnum, ConnType  # 操作方式、工位、通信方式
-from utils.entities import SerialPortConfiguration, SerialPortInfo, JLinkConfiguration, JLinkInfo, \
-    LogConfiguration, MCUInfo, UKeyInfo  # 串口配置项，串口配置控件，JLink配置项，日志配置项，MCU信息
-from utils.file_utils import check_file_suffix
+from log import logger, OperateLogger  # 软件记录日志， 操作流程记录日志类
+from utils.entities import *
+from utils.file_utils import *
 from utils.utility import is_hex
+from utils.protocol_utils import parse_protocol, check_command
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
@@ -66,6 +69,7 @@ class OneOsGui:
 
     def init_types(self):
         """定义属性类型"""
+        self.port_com = PyBoard()  # 串口连接对象
         self.jlink_com = JLinkCOM()  # 初始化jlink对象
         self.ukey_com = PyUKey()  # 初始化ukey对象
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
@@ -81,6 +85,16 @@ class OneOsGui:
         self.__serial_port_info_debug = None  # 调试界面的串口控件
         self.__jlink_info_product = None  # 生产界面的JLink控件
         self.__jlink_info_debug = None  # 调试界面的JLink控件
+        self.entry_mcu_product = None
+        self.entry_license_addr_product = None
+        self.entry_license_size_product = None
+        self.entry_mcu_debug = None
+        self.entry_license_addr_debug = None
+        self.entry_license_size_debug = None
+        self.tree_hid = None  # 生产模式批量读ID操作结果展示列表
+        self.tree_license = None  # 生产模式批量写License操作结果展示列表
+        self.succ_hid = []  # 记录成功的设备ID
+        self.fail_hid = []  # 记录失败的设备ID
 
     def init_values(self):
         """定义属性初始值"""
@@ -177,13 +191,32 @@ class OneOsGui:
         """
         message = None
         if self.__conn_type.conn_type.get() == 'J-Link通信':  # J-Link通信的相关配置验证
-            print(self.__jlink_configuration.serial_no)
-            print(self.__jlink_configuration.interface_type)
-            print(self.__jlink_configuration.rate)
-            print(self.__jlink_configuration.mcu)
-            print(self.__jlink_configuration.hid_addr)
-            print(self.__jlink_configuration.license_addr)
-            print(self.__jlink_configuration.license_size_stored)
+            if self.__mode_type.get == 'PRODUCT':  # 生产模式
+                self.__jlink_configuration.mcu = self.entry_mcu_product.get()
+                self.__jlink_configuration.license_addr = self.entry_license_addr_product.get()
+                self.__jlink_configuration.license_size_stored = self.entry_license_size_product.get()
+            elif self.__mode_type.get() == 'DEBUG':  # 调试模式
+                self.__jlink_configuration.mcu = self.entry_mcu_debug.get()
+                self.__jlink_configuration.license_addr = self.entry_license_addr_debug.get()
+                self.__jlink_configuration.license_size_stored = self.entry_license_size_debug.get()
+            if not self.__jlink_configuration.serial_no:
+                message = '请选择ARM仿真器序列号'
+                return message
+            if not self.__jlink_configuration.interface_type:
+                message = '请选择接口类型: JTAG/SWD'
+                return message
+            if not self.__jlink_configuration.rate:
+                message = '请设置通信速率'
+                return message
+            if not self.__jlink_configuration.mcu:
+                message = '请选择适配的MCU'
+                return message
+            if not self.__jlink_configuration.license_addr:
+                message = '请设置license存储地址'
+                return message
+            if not self.__jlink_configuration.license_size_stored:
+                message = '请设置license存储区域大小'
+                return message
         elif self.__conn_type.conn_type.get() == '串口通信':  # 串口通信的相关配置验证
             if not self.__serial_port_configuration.port:
                 message = '请选择连接串口号'
@@ -205,6 +238,59 @@ class OneOsGui:
                 message = '请选择流控'
                 return message
         return message
+
+    def log_shower_insert(self, message, tag=None):
+        """
+        打印操作记录
+        Args:
+            message:
+            tag:
+
+        Returns:
+
+        """
+        if tag is None:
+            if self.__mode_type.get() == 'PRODUCT':
+                self.log_shower_product.insert(tk.END, message)
+            else:
+                self.log_shower_debug.insert(tk.END, message)
+        else:
+            if self.__mode_type.get() == 'PRODUCT':
+                self.log_shower_product.insert(tk.END, message, tag)
+            else:
+                self.log_shower_debug.insert(tk.END, message, tag)
+
+    def tree_insert(self, content, tree):
+        """
+        往tree内添加一条数据(如果设备ID(-组件ID)已经在tree内展示，则对其进行更新)
+        Args:
+            content: 一条待插入数据(( '12348', '成功')/('12347', 1004, '失败'))
+            tree: 待插入的列表控件对象
+
+        Returns:
+
+        """
+        # 首先要判断插入的数据是否已经在tree中存在
+        key_word = ''
+        if len(content) == 2:  # 读ID的操作结果
+            key_word = {content[0]}  # 设备ID
+        elif len(content) == 3:  # 写License的操作结果
+            key_word = {content[0], content[1]}  # 设备ID，组件ID
+        else:
+            logger.warning(f'获取到非预期的结果描述: {content}')
+        for i in tree.get_children():
+            values = tree.item[i]['values']
+            if key_word.issubset(set(values)):  # 是子集
+                tree.delelte(i)
+                break
+
+        length = len(tree.get_children())
+        content = (length+1, *content)
+        # 插入
+        if content[-1] == '失败':
+            tree.insert('', tk.END, values=content, tag='tag_failed')
+        else:
+            tree.insert('', tk.END, values=content)
 
     def port_configuration_confirm(self, cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller, parent=None):
         """
@@ -381,7 +467,7 @@ class OneOsGui:
         # 数据位
         frame = tk.Frame(parent, bg=bg)
         tk.Label(frame, text='数据位', bg=bg).pack(side=tk.LEFT, padx=10)
-        data_digit_values = ['5', '6', '7', '8']
+        data_digit_values = [5, 6, 7, 8]
         cb_data = ttk.Combobox(frame, value=data_digit_values,
                                width=width, state='readonly')
         cb_data.current(data_digit_values.index(self.__serial_port_configuration.data_digit))
@@ -586,6 +672,9 @@ class OneOsGui:
             index_ = self.jlink_com.emulators.index(self.__jlink_configuration.serial_no)
             cb_serial_no.current(index_)
         cb_serial_no.bind('<Button-1>', update_serial_no)
+        if bg == 'white':
+            cb_serial_no.bind('<<ComboboxSelected>>',
+                              self.__jlink_configuration.update_serial_no(cb_serial_no))
         cb_serial_no.pack(side=tk.LEFT, padx=padx)
         frame.pack(pady=6, fill=tk.X)
         # 接口模式
@@ -594,6 +683,9 @@ class OneOsGui:
         interface_type_values = ['JTAG', 'SWD']
         cb_interface_type = ttk.Combobox(frame, value=interface_type_values, width=width, state='readonly')
         cb_interface_type.current(interface_type_values.index(self.__jlink_configuration.interface_type))
+        if bg == 'white':
+            cb_interface_type.bind('<<ComboboxSelected>>',
+                                   self.__jlink_configuration.update_interface_type(cb_interface_type))
         cb_interface_type.pack(side=tk.LEFT, padx=padx)
         frame.pack(pady=6, fill=tk.X)
         # 速率(kHZ)
@@ -610,6 +702,8 @@ class OneOsGui:
                 if '请手动输入传输速率' in rate_values:
                     rate_values = rate_values[:-1]
                 cb_rate.configure(state='readonly', value=rate_values)
+            if bg == 'white':
+                self.__jlink_configuration.update_rate(cb_rate.get())
 
         frame = tk.Frame(parent, bg=bg)
         tk.Label(frame, text='速率(kHZ)', bg=bg).pack(side=tk.LEFT)
@@ -1164,37 +1258,19 @@ class OneOsGui:
         ## 设置滚动条
         sb = tk.Scrollbar(frame_hid_ret_display)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
-        tree_1 = ttk.Treeview(frame_hid_ret_display, columns=columns_1,
+        self.tree_hid = ttk.Treeview(frame_hid_ret_display, columns=columns_1,
                               displaycolumns=displaycolumns_1, show='headings',
                               yscrollcommand=sb.set)
-        sb.config(command=tree_1.yview)
+        sb.config(command=self.tree_hid.yview)
         ## 设置结果为失败的行标签对应的字体颜色
-        tree_1.tag_configure('tag_failed', foreground='red')
+        self.tree_hid.tag_configure('tag_failed', foreground='red')
         ## 设置表格文字居中，以及表格宽度
         for column in columns_1:
-            tree_1.column(column, anchor='center', width=120, minwidth=120)
+            self.tree_hid.column(column, anchor='center', width=120, minwidth=120)
         ## 设置表格头部标题
         for column in columns_1:
-            tree_1.heading(column, text=column)
-        ## 往表格内添加内容  TODO 以二维列表的形式存储结果数据[(序号，设备ID，结果), ...]\[(序号，设备ID，组件ID，结果)]
-        hid_ret = [(0, '12345', '成功'), (1, '12346', '成功'), ((2, '12347', '失败'))]
-        for idx, content in enumerate(hid_ret):
-            if content[-1] == '失败':
-                tree_1.insert('', idx, values=content, tag='tag_failed')
-            else:
-                tree_1.insert('', idx, values=content)
-        tree_1.pack(side=tk.TOP, fill=tk.BOTH, padx=15, pady=20)
-
-        if_failed = False
-
-        def add_insert():  # TODO 往表格内插入数据
-            nonlocal if_failed
-            if not if_failed:
-                tree_1.insert('', tk.END, value=(3, '12348', '成功'))
-                if_failed = True
-            else:
-                tree_1.insert('', tk.END, values=(4, '12349', '失败'), tag='tag_failed')
-                if_failed = False
+            self.tree_hid.heading(column, text=column)
+        self.tree_hid.pack(side=tk.TOP, fill=tk.BOTH, padx=15, pady=20)
 
         frame_hid_ret_display.pack(side=tk.LEFT, fill=tk.BOTH)
 
@@ -1219,12 +1295,6 @@ class OneOsGui:
         for column in columns_2:
             tree_2.heading(column, text=column)
         ## 往表格内添加内容  TODO 以二维列表形式存储写license操作的结果[(序号，设备ID，组件ID，结果), ...]
-        license_ret = [(0, '12345', 1002, '成功'), (1, '12346', 1003, '成功'), ((2, '12347', 1004, '失败'))]
-        for idx, content in enumerate(license_ret):
-            if content[-1] == '失败':
-                tree_2.insert('', idx, values=content, tag='tag_failed')
-            else:
-                tree_2.insert('', idx, values=content)
         tree_2.pack(side=tk.TOP, fill=tk.BOTH, padx=15, pady=20)
         return frame_hid_ret_display, frame_license_ret_display
 
@@ -1249,6 +1319,15 @@ class OneOsGui:
                     tk.messagebox.showwarning(title='WARNING',
                                               message=message_conn)
                 # TODO 具体的通信逻辑
+                if self.__mode_type.get() == 'PRODUCT':  # 生产模式，连续操作，加入超时机制
+                    if self.__operate_type.get() == 'HID':  # 读HID操作
+                        t = Thread(target=self.read_id, daemon=True)
+                        t.start()
+                    elif self.__operate_type.get() == 'LICENSE_FILE':  # 根据license文件写license操作
+                        self.write_license_by_file()
+                    elif self.__operate_type.get() == 'LICENSE_UKEY':  # 根据UKey进行写license操作
+                        self.write_license_by_ukey()
+                # 因为开始按钮只存在于生产模式界面，所以没有其余分支
                 button_text.set('停  止')
                 btn_start.configure(fg='red')
             else:
@@ -1362,10 +1441,13 @@ class OneOsGui:
         if type == 'product':
             self.__jlink_info_product = JLinkInfo(cb_serial_no, cb_interface_type, cb_rate, entry_mcu,
                                                   entry_license_addr, entry_license_size)
+            self.entry_mcu_product, self.entry_license_addr_product, \
+            self.entry_license_size_product = entry_mcu, entry_license_addr, entry_license_size
         elif type == 'debug':
             self.__jlink_info_debug = JLinkInfo(cb_serial_no, cb_interface_type, cb_rate, entry_mcu,
                                                 entry_license_addr, entry_license_size)
-
+            self.entry_mcu_debug, self.entry_license_addr_debug, \
+            self.entry_license_size_debug = entry_mcu, entry_license_addr, entry_license_size
 
     def draw_frame_log_shower(self, parent, width, height):
         """绘制日志打印控件"""
@@ -1401,8 +1483,8 @@ class OneOsGui:
         tk.Label(parent, text='', bg='white').pack(side=tk.LEFT, padx=25)
         # 串口状态-key
         tk.Label(parent, text='串口状态：', bg='white').pack(side=tk.LEFT, padx=2)
-        # 串口状态-value  TODO 根据串口是否已连接(开始按钮)来改变串口状态
-        tk.Label(parent, textvariable=self.__serial_port_configuration.state, bg='white').pack(side=tk.LEFT)
+        # 串口状态-value
+        tk.Label(parent, textvariable=self.port_com.status, bg='white').pack(side=tk.LEFT)
         tk.Label(parent, text='', bg='white').pack(side=tk.LEFT, padx=25)
         # 运行状态-key
         tk.Label(parent, text='运行状态：', bg='white').pack(side=tk.LEFT, padx=2)
@@ -1713,6 +1795,136 @@ class OneOsGui:
         tk.Label(parent, text='串口状态：', bg='white').pack(side=tk.LEFT, padx=2)
         # 串口状态-vaule
         tk.Label(parent, text='XXX已连接', bg='white', fg='green').pack(side=tk.LEFT)
+
+    def __turn_on(self):
+        """连接到串口/Jlink时，更新状态信息"""
+        pass
+
+    def __turn_off(self):
+        """断开串口/Jlink连接时，更新状态信息"""
+        pass
+
+    #### 以上为界面代码，以下为动态逻辑代码
+    def connect_to_port(self):
+        """同串口建立连接"""
+        logger.info(f'连接串口 {self.__serial_port_configuration.port}')
+        rtscts = False
+        xonxoff = False
+        if self.__serial_port_configuration.stream_controller == 'RTS/CTS':
+            rtscts = True
+        elif self.__serial_port_configuration.stream_controller == 'XON/XOFF':
+            xonxoff = True
+        self.port_com.open(self.__serial_port_configuration.port,
+                           int(self.__serial_port_configuration.baud_rate),
+                           stopbits=int(self.__serial_port_configuration.stop_digit),
+                           parity=self.__serial_port_configuration.check_digit[0],
+                           bytesize=int(self.__serial_port_configuration.data_digit),
+                           rtscts=rtscts,
+                           xonxoff=xonxoff,
+                           )
+        if self.port_com.is_open:  # 已连接
+            self.__turn_on()  # 改变状态栏
+            return True
+        self.log_shower_insert(f'串口 {self.__serial_port_configuration.port}连接失败\n',
+                               tag='warn')
+
+    def disconnect_to_board(self):
+        self.port_com.close()
+        self.jlink_com.close()
+
+    def read_id(self):
+        """
+        读设备ID操作
+        Returns:
+
+        """
+        if self.__conn_type.conn_type.get() == '串口通信':
+            self.read_id_port()
+        elif self.__conn_type.conn_type.get() == 'J-Link通信':
+            self.read_id_jlink()
+
+    def read_id_port(self):
+        """
+        串口通信方式读取设备ID
+        Returns:
+
+        """
+        if_port_connected = self.connect_to_port()
+        if if_port_connected:  # 已经连接
+            try:
+                hid_response = self.port_com.get_HID()
+            except SerialException as e:
+                logger.warning('串口访问异常', exc_info=e)
+                self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
+                self.disconnect_to_board()
+                return
+            except Exception as e:
+                logger.warning('串口访问异常', e)
+                self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
+                self.disconnect_to_board()
+                return
+            else:
+                if hid_response is None:
+                    self.log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
+                    self.disconnect_to_board()
+                    return
+            # 以上，已经成功接收到hid返回，以下为写入本地hid文件代码
+            try:
+                board_protocol = parse_protocol(hid_response)
+            except Exception as e:
+                self.log_shower_insert(f'解析及校验HID response失败\n', tag='error')
+                self.disconnect_to_board()
+                return
+             # 指令校验
+            if not check_command(board_protocol.payload_data.command, 'hid_response'):  # 校验失败
+                logger.warning(f'指令校验失败, 预期为0081，收到{board_protocol.payload_data.command}',
+                               f'数据为{board_protocol.payload_data.data}')
+                error_type = Error_Data_Map.get(board_protocol.payload_data.data)
+                if error_type is not None:
+                    logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                    self.log_shower_insert(f'hid读取错误, '
+                                                f'指令{board_protocol.payload_data.command} 错误类型{error_type}\n')
+                else:
+                    logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                    self.log_shower_insert(f'hid读取错误, '
+                                                f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
+                self.log_shower_insert(f'解析及校验 ID response失败\n', tag='error')
+                self.disconnect_to_board()
+                time.sleep(1)
+                return
+
+            hid_value = board_protocol.payload_data.data
+            self.log_shower_insert(f'设备ID读取成功\n')
+            logger.info(f'添加ID： {hid_value}')
+            self.log_shower_insert(f'记录设备{hid_value}到表格\n')
+            if hid_value in self.succ_hid:
+                self.log_shower_insert(f'设备ID已经存储完成，请更换设备...\n', tag='confirm')
+                return
+            try:
+                record_HID_activated(hid_value, Path(self.__filepath_hid.get()))
+            except Exception as e:
+                if hid_value not in self.fail_hid:
+                    self.fail_hid.append(hid_value)
+                    self.tree_insert((hid_value, '失败'), self.tree_hid)
+                logger.exception(e)
+                self.log_shower_insert(f'设备ID存储失败\n', tag='error')
+                self.disconnect_to_board()
+            else:
+                self.succ_hid.append(hid_value)
+                self.tree_insert((hid_value, '成功'), self.tree_hid)
+                self.__update_statistic('成 功', fg='green')
+                self.log_shower_insert(f'设备ID存储完成，请更换设备...\n', tag='confirm')
+                self.disconnect_to_board()
+
+    def read_id_jlink(self):
+        """
+        JLink方式的读取设备ID流程
+        Returns:
+
+        """
+        pass
+
+
 
     def run(self):
         self.window_.mainloop()

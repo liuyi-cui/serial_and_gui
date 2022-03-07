@@ -4,7 +4,7 @@
 """
 
 
-from utils.protocol_utils import parse_protocol, build_protocol
+from utils.protocol_utils import parse_protocol, build_protocol, check_payload
 
 
 class TestProtocol:
@@ -49,7 +49,9 @@ class TestProtocol:
         assert package_value == '5A00120081000E0000540049001350564846323020F5'.lower()
 
     def test_parse_protocol(self):
-        data = '5A000e0081000a000035D9C0AE729DB9E0AF'
+        # data = '5A000e0081000a000035D9C0AE729DB9E0AF'
+        # data = '5A000E0081000A0000F3097F67D2B14F2D6C'
+        data = '5A06010203'
         board_protocol = parse_protocol(data)
         payload_data = board_protocol.payload_data
         print('\n')
@@ -60,5 +62,14 @@ class TestProtocol:
         print('head', board_protocol.head)
         print('payload_length', board_protocol.payload_length)
         print('check_sum', board_protocol.check_sum)
+
+    def test_build_license_protocol(self):
+        """组装查询设备license烧写情况的通信协议"""
+        data = ''
+        command = '0004'
+        package_value = build_protocol(data, command=command)
+        print(package_value)
+
+
 
 

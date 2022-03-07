@@ -10,6 +10,9 @@ from utils.convert_utils import strhextobytes
 from utils.utility import padding_hex
 
 
+dll_path = r'D:\Projects\python\LicenseManagementTool\files\UKey\Python-x64\Don_API-x64.dll'
+
+
 class PyUKeyException(Exception):
     pass
 
@@ -74,7 +77,7 @@ class PyUKey:
     ORI_USERPIN = '12345678'  # 出厂默认的USERPIN
     ORI_ADMINPIN = 'ffffffffffffffff'  # 出厂默认的ADMINPIN
 
-    def __init__(self, dll_path):
+    def __init__(self, dll_path=dll_path):
         self.is_open = False  # 是否已经同一个UKey建立连接
         self.is_connected = False  # 是否已经通过了PIN码验证
         self.handle = None  # UKey连接句柄

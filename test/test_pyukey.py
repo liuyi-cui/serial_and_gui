@@ -14,8 +14,8 @@ class TestPyUKey:
         self.py_ukey = PyUKey(dll_path)
 
     def test_find(self):  # 获取连接的ukey设备数
-        p_counts = self.py_ukey.find()
-        print(f'\n当前连接的设备数为 {p_counts}')
+        self.py_ukey.find()
+        print(f'\n当前连接的设备数为 {self.py_ukey.ukey_pool}')
 
     def test_open_don(self):  # 同第一个设备建立连接
         don_index = 1  # 连接第一个设备

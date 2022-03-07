@@ -166,3 +166,9 @@ def check_payload(payload, command_type: str) -> bool:
         return True
     else:
         return False
+
+
+if __name__ == '__main__':
+    license_ret = '5A00120081000E0000500048000551383039363935C25A00070084000300000F96'
+    ret = parse_protocol(license_ret)
+    print(ret)

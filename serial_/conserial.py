@@ -14,17 +14,26 @@ class ConSerial:
         self.is_open = False
 
     @retry(logger)
-    def __open(self, port, baudrate):
+    def __open(self, port, baudrate, stopbits, parity, bytesize, rtscts, xonxoff):
         logger.info(f'connect to {port} {baudrate}')
-        con = Serial(baudrate=baudrate, interCharTimeout=1, timeout=2)
+        con = Serial(baudrate=baudrate,
+                     stopbits=stopbits,
+                     parity=parity,
+                     bytesize=bytesize,
+                     rtscts=rtscts,
+                     xonxoff=xonxoff,
+                     interCharTimeout=1,
+                     timeout=2)
         con.port = port
         con.open()
         return con
 
-    def open(self, port, baudrate):
+    def open(self, port: str, baudrate: int, stopbits=1, parity='N',
+             bytesize=8, rtscts=False, xonxoff=False):
         self.port = port
         self.baudrate = baudrate
-        self.con = self.__open(port, baudrate)
+        self.con = self.__open(port, baudrate, stopbits=stopbits, parity=parity,
+                               bytesize=bytesize, rtscts=rtscts, xonxoff=xonxoff)
         self.is_open = True
 
     def close(self):
