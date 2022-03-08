@@ -119,6 +119,8 @@ class OneOsGui:
         self.retry_time = 0  # 失败的持续次数
         self.last_success_hid = ''  # 上一次成功的设备HID
         self.go = True  # 生产模式下，一直运行
+        self.frame_product = None
+        self.frame_debug = None
 
     def __update_statistic(self, text='', fg='white'):
         """
@@ -891,8 +893,6 @@ class OneOsGui:
         self.draw_menu(self.window_)  # 绘制菜单栏，固定布局
         # 绘制生产模式的界面
         self.frame_product = self.draw_product_frame(self.window_)
-        # 绘制调试模式的界面
-        self.frame_debug = self.draw_debug_frame(self.window_)
         # 默认展示生产模式的界面
         self.frame_product.pack(expand=True, fill=tk.BOTH)
 
@@ -913,11 +913,20 @@ class OneOsGui:
         mode_menu = tk.Menu(parent, tearoff=0)
 
         def swith_to_product():
-            self.frame_debug.pack_forget()
+            self.disconnect_to_board()  # 每次切换断开所有连接
+            if self.frame_debug:
+                self.frame_debug.pack_forget()
+                self.frame_debug = None
+            self.frame_product = self.draw_product_frame(self.window_)
             self.frame_product.pack(expand=True, fill=tk.BOTH)
 
         def swith_to_debug():
-            self.frame_product.pack_forget()
+            self.disconnect_to_board()  # 每次切换断开所有连接
+            # 绘制调试模式的界面
+            if self.frame_product:
+                self.frame_product.pack_forget()
+                self.frame_product = None
+            self.frame_debug = self.draw_debug_frame(self.window_)
             self.frame_debug.pack(expand=True, fill=tk.BOTH)
 
         # 给菜单对象添加选项
@@ -1434,14 +1443,15 @@ class OneOsGui:
             frame_2_t_l.pack(side=tk.LEFT, fill=tk.Y)
             ### 右边放置连接按钮
             frame_2_t_r = tk.Frame(frame_2_t, bg='white')
-            tk.Button(frame_2_t_r, text='连 接', bg='#D7D7D7').pack(side=tk.BOTTOM, padx=50, pady=5)
+            self.btn_start_debug = tk.Button(frame_2_t_r, text='串口连接', bg='#D7D7D7', command=self.connect_to_port)
+            self.btn_start_debug.pack(side=tk.BOTTOM, padx=50, pady=5)  # TODO 串口连接
             frame_2_t_r.pack(side=tk.RIGHT, fill=tk.Y)
             frame_2_t.pack(side=tk.TOP, fill=tk.X)
 
         frame_2.pack(side=tk.TOP, fill=tk.BOTH)
         ## 配置信息
         cb_port, cb_baudrate, cb_data, cb_check, cb_stop, cb_stream_controller = \
-        self._draw_serial_port_configuration(frame_2, width=22, bg='white')  # TODO 为了保证一处配置，各个地方的信息保持同步，则需要将这些控件作为属性存储起来，然后调用方法同步更新
+        self._draw_serial_port_configuration(frame_2, width=22, bg='white')
         if type == 'product':
             self.__serial_port_info_product = SerialPortInfo(cb_port, cb_baudrate, cb_data,
                                                              cb_check, cb_stop, cb_stream_controller)
@@ -1464,7 +1474,7 @@ class OneOsGui:
             frame_3_t_l.pack(side=tk.LEFT, fill=tk.Y)
             ### 右边放置连接按钮
             frame_3_t_r = tk.Frame(frame_3_t, bg='white')
-            tk.Button(frame_3_t_r, text='J-Link连 接', bg='#D7D7D7').pack(side=tk.BOTTOM, padx=50, pady=5)
+            tk.Button(frame_3_t_r, text='J-Link连 接', bg='#D7D7D7').pack(side=tk.BOTTOM, padx=50, pady=5)  # TODO J-Link连接
             frame_3_t_r.pack(side=tk.RIGHT, fill=tk.Y)
             frame_3_t.pack(side=tk.TOP, fill=tk.X)
 
@@ -1599,7 +1609,8 @@ class OneOsGui:
         ## 具体细节代码
         hid = tk.StringVar()
         def get_hid():  # 获取设备ID按钮执行方法
-            hid.set('abcdefg12345')
+            hid_value = self.read_id(if_keep=False)  # 表示调试模式
+            hid.set(hid_value)
         ### 文字标签
         tk.Label(frame_l_t, text='设备ID   ', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
         ### 执行按钮
@@ -1827,7 +1838,8 @@ class OneOsGui:
         # 串口状态-key
         tk.Label(parent, text='串口状态：', bg='white').pack(side=tk.LEFT, padx=2)
         # 串口状态-vaule
-        tk.Label(parent, text='XXX已连接', bg='white', fg='green').pack(side=tk.LEFT)
+        self.label_port_status = tk.Label(parent, text='断开', bg='white')
+        self.label_port_status.pack(side=tk.LEFT)
 
     def __turn_on(self):
         """连接到串口/Jlink时，更新状态信息"""
@@ -1844,6 +1856,10 @@ class OneOsGui:
     #### 以上为界面代码，以下为动态逻辑代码
     def connect_to_port(self):
         """同串口建立连接"""
+        if not self.__serial_port_configuration.port:
+            tk.messagebox.showerror(title='Error',
+                                    message='请选择连接串口号')
+            return
         logger.info(f'连接串口 {self.__serial_port_configuration.port}')
         rtscts = False
         xonxoff = False
@@ -1851,6 +1867,15 @@ class OneOsGui:
             rtscts = True
         elif self.__serial_port_configuration.stream_controller == 'XON/XOFF':
             xonxoff = True
+        if self.__mode_type.get() == 'DEBUG':  # 调试模式下，需要判断是连接还是断开
+            if self.btn_start_debug.configure().get('text')[-1] == '断 开':
+                self.disconnect_to_board()
+                self.btn_start_debug.configure(text='串口连接', fg='green')
+                self.label_port_status.configure(text='断开', fg='black')
+                self.log_shower_insert(f'串口 {self.__serial_port_configuration.port}断开连接\n',
+                                       tag='error')
+                return
+
         self.port_com.open(self.__serial_port_configuration.port,
                            int(self.__serial_port_configuration.baud_rate),
                            stopbits=int(self.__serial_port_configuration.stop_digit),
@@ -1861,6 +1886,11 @@ class OneOsGui:
                            )
         if self.port_com.is_open:  # 已连接
             self.__turn_on()  # 改变状态栏
+            if self.__mode_type.get() == 'DEBUG':
+                self.btn_start_debug.configure(text='断 开', fg='red')
+                self.label_port_status.configure(text=f'{self.__serial_port_configuration.port}已连接', fg='green')
+            self.log_shower_insert(f'串口 {self.__serial_port_configuration.port}连接成功\n',
+                                   tag='confirm')
             return True
         self.log_shower_insert(f'串口 {self.__serial_port_configuration.port}连接失败\n',
                                tag='warn')
@@ -1893,16 +1923,21 @@ class OneOsGui:
                         self.__update_statistic('停 止', 'blue')
                         self.__turn_off()
                         break
-                    self.read_id_port()
+                    hid_value = self.read_id_port()
+                    if hid_value:
+                        self.record_hid(hid_value)
                     self.disconnect_to_board()
                     time.sleep(1)
             else:
-                self.read_id_port()  # 进行一次操作
+                hid_value = self.read_id_port()  # 进行一次操作
+                self.log_shower_insert(f'设备ID获取成功:{hid_value}\n')
+                return hid_value
         elif self.__conn_type.conn_type.get() == 'J-Link通信':
             if if_keep:
                 pass
             else:
-                self.read_id_jlink()  # 只进行一次操作
+                hid_value = self.read_id_jlink()  # 只进行一次操作
+                return hid_value
 
     def read_id_port(self):
         """
@@ -1960,33 +1995,40 @@ class OneOsGui:
                 return
 
             hid_value = board_protocol.payload_data.data
-            self.log_shower_insert(f'设备ID读取成功\n')
-            logger.info(f'添加ID： {hid_value}')
-            self.log_shower_insert(f'记录设备{hid_value}到表格\n')
-            if hid_value in self.succ_hid:
-                self.tree_insert((str(hid_value), '成功'), self.tree_hid)
-                self.retry_time += 1
-                self.__update_statistic('已完成', fg='green')
-                self.log_shower_insert(f'设备ID已经存储完成，请更换设备...\n', tag='confirm')
-                time.sleep(3)
-                return
-            try:
-                record_HID_activated(hid_value, Path(self.__filepath_hid.get()))
-            except Exception as e:
-                if hid_value not in self.fail_hid:
-                    self.fail_hid.append(hid_value)
-                    self.tree_insert((hid_value, '失败'), self.tree_hid)
-                logger.exception(e)
-                self.__update_statistic('失 败', fg='red')
-                self.log_shower_insert(f'设备ID存储失败\n', tag='error')
-                self.disconnect_to_board()
-            else:
-                self.operate_start_time = datetime.now()
-                self.succ_hid.append(hid_value)
-                self.tree_insert((hid_value, '成功'), self.tree_hid)
-                self.__update_statistic('成 功', fg='green')
-                self.log_shower_insert(f'设备ID存储完成，请更换设备...\n', tag='confirm')
-                self.disconnect_to_board()
+            return hid_value
+        else:
+            tk.messagebox.showwarning(title='Warning',
+                                      massage='请先连接串口')
+            return
+
+    def record_hid(self, hid_value):
+        self.log_shower_insert(f'设备ID读取成功\n')
+        logger.info(f'添加ID： {hid_value}')
+        self.log_shower_insert(f'记录设备{hid_value}到表格\n')
+        if hid_value in self.succ_hid:
+            self.tree_insert((str(hid_value), '成功'), self.tree_hid)
+            self.retry_time += 1
+            self.__update_statistic('已完成', fg='green')
+            self.log_shower_insert(f'设备ID已经存储完成，请更换设备...\n', tag='confirm')
+            time.sleep(3)
+            return
+        try:
+            record_HID_activated(hid_value, Path(self.__filepath_hid.get()))
+        except Exception as e:
+            if hid_value not in self.fail_hid:
+                self.fail_hid.append(hid_value)
+                self.tree_insert((hid_value, '失败'), self.tree_hid)
+            logger.exception(e)
+            self.__update_statistic('失 败', fg='red')
+            self.log_shower_insert(f'设备ID存储失败\n', tag='error')
+            self.disconnect_to_board()
+        else:
+            self.operate_start_time = datetime.now()
+            self.succ_hid.append(hid_value)
+            self.tree_insert((hid_value, '成功'), self.tree_hid)
+            self.__update_statistic('成 功', fg='green')
+            self.log_shower_insert(f'设备ID存储完成，请更换设备...\n', tag='confirm')
+            self.disconnect_to_board()
 
     def read_id_jlink(self):
         """
