@@ -13,7 +13,7 @@ from pathlib import Path
 from dao import HID_License_Map, DaoException
 from serial_.pyboard import PyBoard  # 串口通信对象
 from jlink_.pyjlink import JLinkCOM  # JLink通信对象
-from ukey_.pyukey import PyUKey  # UKey通信对象
+from ukey_.pyukey import PyUKey, PyUKeyException  # UKey通信对象
 from log import logger, OperateLogger  # 软件记录日志， 操作流程记录日志类
 from utils.entities import *
 from utils.file_utils import *
@@ -123,11 +123,22 @@ class OneOsGui:
         self.frame_debug = None
 
     @property
-    def is_open(self):
+    def is_open_s(self):
+        """南向(同设备)是否建立连接"""
         if self.__conn_type.conn_type.get() == '串口通信':
             return self.port_com.is_open
         else:
             return self.jlink_com.is_open
+
+    @property
+    def is_open_n(self):
+        """北向(同License文件/UKey是否建立连接)"""
+        print('操作方式', self.__operate_type.get())
+        if self.__operate_type.get() == 'LICENSE_FILE':
+            return bool(self.__filepath_license.get())
+        elif self.__operate_type.get() == 'LICENSE_UKEY':
+            print('ukey连接状态', self.ukey_com.is_open)
+            return self.ukey_com.is_open
 
     def __update_statistic(self, text='', fg='white'):
         """
@@ -655,8 +666,14 @@ class OneOsGui:
             frame_ukey = tk.Frame(frame)
             ## 具体控件代码
             ### UKey选择
+
+            def refresh_ukey_product(event):
+                self.ukey_com.find()
+                cb_ukey.configure(values=self.ukey_com.products)
+
             tk.Label(frame_ukey, text='UKey选择', padx=30, pady=10).pack(side=tk.LEFT, fill=tk.Y)
-            cb_ukey = ttk.Combobox(frame_ukey, values=('COM1', 'COM2'), width=30)
+            cb_ukey = ttk.Combobox(frame_ukey, values=self.ukey_com.products, width=30)
+            cb_ukey.bind('<Button-1>', refresh_ukey_product)
             cb_ukey.pack(side=tk.LEFT)
             frame_ukey.pack(side=tk.TOP, fill=tk.X)
             # 输入pin码
@@ -675,13 +692,42 @@ class OneOsGui:
                 获取用户输入，同UKey建立连接
                 """
                 ukey_name = cb_ukey.get()
-                print(f'ukey name: {ukey_name}')  # TODO 尝试建立UKey连接，连接失败的话给出相应警告
                 pin_value = entry_pin.get()
-                print(f'pin value: {pin_value}')
+                if not ukey_name or not pin_value:
+                    tk.messagebox.showerror(title='Error',
+                                            message='设备名和PIN码不正确')
+                don_index = int(ukey_name[len(self.ukey_com.PRODUCT_PREFIX)+1:])
+                try:
+                    self.ukey_com.open_don(don_index)
+                except PyUKeyException as e:
+                    logger.error(e)
+                    tk.messagebox.showerror(title='Error',
+                                            message=f'{e}')
+                    return
+                except Exception as e:
+                    logger.exception(e)
+                    tk.messagebox.showerror(title='Error',
+                                            message=f'连接UKey失败, {e}')
+                    return
+                try:
+                    self.ukey_com.verify_pin(p_pin=pin_value)
+                except PyUKeyException as e:
+                    logger.error(e)
+                    tk.messagebox.showerror(title='Error',
+                                            message=f'{e}')
+                    return
+                except Exception as e:
+                    logger.exception(e)
+                    tk.messagebox.showerror(title='Error',
+                                            message=f'PIN码验证失败, {e}')
+                    return
+                # ukey 验证成功
+                self.log_shower_insert(f'UKey {ukey_name} PIN码验证通过', tag='confirm')
+                self.__ukey_info.update_connected(ukey_name)
+
                 frame.destroy()
 
             def cancel():
-                print('取消按钮')
                 frame.destroy()
 
             tk.Label(frame_confirm).pack(side=tk.LEFT, padx=60)
@@ -1730,7 +1776,7 @@ class OneOsGui:
             """选择license来源为本地license文件
             1 右侧状态展示栏为查找license file的输入框
             """
-            print(license_source.get())
+            self.__operate_type.set(OperateEnum.LICENSE_FILE.value)
             frame_l_t_r_license_ukey.pack_forget()
             frame_l_t_r_license_file.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
@@ -1738,7 +1784,7 @@ class OneOsGui:
             """选择license来源为UKey
             1 右侧状态展示栏为连接UKey/UKey状态展示界面
             """
-            print(license_source.get())
+            self.__operate_type.set(OperateEnum.LICENSE_UKEY.value)
             frame_l_t_r_license_file.pack_forget()
             frame_l_t_r_license_ukey.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
@@ -1796,21 +1842,29 @@ class OneOsGui:
                 tk.messagebox.showwarning(title='Warning',
                                           message='请输入查找License的组件ID')
                 return
-            if not self.__filepath_license.get():
+            if not self.is_open_n:
                 tk.messagebox.showwarning(title='Warning',
-                                          message='请先选择本地license文件')
+                                          message='请先选择本地license文件或连接UKey')
                 return
 
-            component_license_map = self.hid_license_map.hid_license_map.get(hid)
-            if not component_license_map:
-                self.log_shower_insert(f'设备ID{hid}本地license文件没有查找到对应的license\n', 'error')
-                return
-            # 先清空展示信息
-            for i in tree.get_children():
-                tree.delete(i)
-            for component_id, license_ in component_license_map.items():
-                tree.insert('', tk.END, values=(component_id, license_))
-            self.log_shower_insert(f'设备ID{hid}从本地获取License完成\n')
+            if self.__operate_type.get() == 'LICENSE_FILE':
+                component_license_map = self.hid_license_map.hid_license_map.get(hid)
+                if not component_license_map:
+                    self.log_shower_insert(f'设备ID{hid}本地license文件没有查找到对应的license\n', 'error')
+                    return
+                # 先清空展示信息
+                for i in tree.get_children():
+                    tree.delete(i)
+                for component_id, license_ in component_license_map.items():
+                    tree.insert('', tk.END, values=(component_id, license_))
+                self.log_shower_insert(f'设备ID{hid}从本地获取License完成\n')
+            elif self.__operate_type.get() == 'LICENSE_UKEY':  # UKey连接
+                self.ukey_com.read_file(0x1001)  # TODO 获取设备的基本信息。这个其实可以放在选在ukey的绑定方法内部
+                self.ukey_com.get_license(hid)
+                print(self.ukey_com.license)
+                for content in self.ukey_com.license:
+                    tree.insert('', tk.END, values=content)
+                self.log_shower_insert(f'设备ID{hid}从UKey获取License完成\n')
 
         tk.Label(frame_l_m, text='设备ID', bg='white').pack(side=tk.LEFT, pady=10, padx=2)
         ety_hid = tk.Entry(frame_l_m, width=30)
@@ -2279,7 +2333,7 @@ class OneOsGui:
             print(f'license: {license_}')
             logger.info(f'component id: {component_id}\nlicense: {license_}')
 
-            if not self.is_open:
+            if not self.is_open_s:
                 tk.messagebox.showerror(title='Error',
                                         message='请先同设备建立串口连接/J-Link连接')
                 return
@@ -2317,7 +2371,7 @@ class OneOsGui:
                 print(f'license: {license_}')
                 logger.info(f'component id: {component_id}\nlicense: {license_}')
 
-                if not self.is_open:
+                if not self.is_open_s:
                     tk.messagebox.showerror(title='Error',
                                             message='请先同设备建立串口连接/J-Link连接')
                     return
@@ -2327,13 +2381,12 @@ class OneOsGui:
                 if self.__conn_type.conn_type.get() == '串口通信':
                     if not self.send_license(self.port_com, protocol):  # 写license方法
                         self.log_shower_insert(f'{component_id}写入license{license_[:20]}...失败\n', tag='warn')
-                        return
+                        continue
                     self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
                 else:
                     pass  # TODO J-Link方式的一次写license方法
 
         return inner
-
 
     def run(self):
         self.window_.mainloop()
