@@ -29,7 +29,7 @@ _ACTIVE_COLOR = 'green'  # 默认激活状态颜色
 _NORMAL_COLOR = 'black'  # 默认正常状态颜色
 SIZE_POPUPS = (400, 280)  # 弹出窗体大小
 MAX_RETRY_TIME = 5  # 最大重复操作次数
-MAX_INTERVAL_SECOND = timedelta(seconds=6)  # 连续失败的最长持续时间为30s
+MAX_INTERVAL_SECOND = timedelta(seconds=15)  # 连续失败的最长持续时间为30s
 
 
 def center_window(win, width=None, height=None):
@@ -118,6 +118,7 @@ class OneOsGui:
         self.operate_start_time = datetime.now()  # 生成模式中，操作的开始时间
         self.retry_time = 0  # 失败的持续次数
         self.last_success_hid = ''  # 上一次成功的设备HID
+        self.go = True  # 生产模式下，一直运行
 
     def __update_statistic(self, text='', fg='white'):
         """
@@ -1331,12 +1332,11 @@ class OneOsGui:
         TODO 通信逻辑部分从此处开始
         """
         frame = tk.Frame(parent)
-        button_text = tk.StringVar()
-        button_text.set('开  始')
 
         def start():
             """点击开始按钮的业务流程"""
-            if button_text.get() == '开  始':  # TODO 继续往下写实际的业务逻辑
+            if self.btn_start.configure().get('text')[-1] == '开  始':  # TODO 继续往下写实际的业务逻辑
+                print('开始')
                 message_file = self.__verify_file()
                 if message_file:
                     tk.messagebox.showwarning(title='WARNING',
@@ -1347,18 +1347,24 @@ class OneOsGui:
                     tk.messagebox.showwarning(title='WARNING',
                                               message=message_conn)
                 # TODO 具体的通信逻辑
-                if self.__mode_type.get() == 'PRODUCT':  # 生产模式，连续操作，加入超时机制
-                    if self.__operate_type.get() == 'HID':  # 读HID操作
-                        t = Thread(target=self.read_id, daemon=True)
-                        t.start()
-                    elif self.__operate_type.get() == 'LICENSE_FILE':  # 根据license文件写license操作
-                        t = Thread(target=self.write_license_by_file, daemon=True)
-                        t.start()
-                    elif self.__operate_type.get() == 'LICENSE_UKEY':  # 根据UKey进行写license操作
-                        self.write_license_by_ukey()
-                # 因为开始按钮只存在于生产模式界面，所以没有其余分支
                 self.__turn_on()
+                try:
+                    if self.__mode_type.get() == 'PRODUCT':  # 生产模式，连续操作，加入超时机制
+                        if self.__operate_type.get() == 'HID':  # 读HID操作
+                            t = Thread(target=self.read_id, daemon=True)
+                            t.start()
+                        elif self.__operate_type.get() == 'LICENSE_FILE':  # 根据license文件写license操作
+                            t = Thread(target=self.write_license_by_file, daemon=True)
+                            t.start()
+                        elif self.__operate_type.get() == 'LICENSE_UKEY':  # 根据UKey进行写license操作
+                            self.write_license_by_ukey()
+                except Exception as e:
+                    logger.exception(e)
+                    self.disconnect_to_board()
+                    self.__turn_off()
+                # 因为开始按钮只存在于生产模式界面，所以没有其余分支
             else:
+                self.disconnect_to_board()
                 self.__turn_off()
 
         self.btn_start = tk.Button(frame, text='开  始', font=('微软雅黑', 12, 'bold'), fg='darkgreen', bg='lightgrey',
@@ -1826,10 +1832,14 @@ class OneOsGui:
     def __turn_on(self):
         """连接到串口/Jlink时，更新状态信息"""
         self.btn_start.configure(text='停  止', fg='red')
+        if not self.go:
+            self.go = True
 
     def __turn_off(self):
         """断开串口/Jlink连接时，更新状态信息"""
         self.btn_start.configure(text='开  始', fg='darkgreen')
+        if self.go:
+            self.go = False
 
     #### 以上为界面代码，以下为动态逻辑代码
     def connect_to_port(self):
@@ -1870,7 +1880,7 @@ class OneOsGui:
             if if_keep:
                 self.retry_time = 0
                 self.operate_start_time = datetime.now()
-                while True:
+                while self.go:
                     self.__update_statistic()
                     time.sleep(1)
                     if self.retry_time >= MAX_RETRY_TIME:
@@ -1999,7 +2009,7 @@ class OneOsGui:
             if if_keep:
                 self.retry_time = 0
                 self.operate_start_time = datetime.now()
-                while True:
+                while self.go:
                     self.__update_statistic()
                     time.sleep(1)
                     print(f'时间间隔: {datetime.now() - self.operate_start_time}')
