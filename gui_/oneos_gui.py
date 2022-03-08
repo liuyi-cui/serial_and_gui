@@ -1913,17 +1913,44 @@ class OneOsGui:
         frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
 
         frame_l_t = tk.Frame(parent, bg='white')
+
+        ## 按钮
+        def record_filepath_hid():
+            """
+            点击选择按钮后，触发方法
+            1 校验选择文件是否合法
+            2 记录选择文件
+            """
+            filepath = filedialog.askopenfilename()  # 打开一个已经存在的文件
+            if filepath != '':
+                if check_file_suffix(filepath):  # 属于excel文件
+                    self.__filepath_hid.set(filepath)
+                    self.succ_hid = read_HID(filepath)  # 将已经存储过的hid读出来
+                else:
+                    tkinter.messagebox.showwarning(title='Warning',
+                                                   message='请选择Excel类型文件')
+
         tk.Label(frame_l_t, text='记录文件', bg='white').pack(side=tk.LEFT, pady=8)
-        ety_hid_filepath = tk.Entry(frame_l_t, width=45)
+        ety_hid_filepath = tk.Entry(frame_l_t, textvariable=self.__filepath_hid, width=45)
         ety_hid_filepath.pack(side=tk.LEFT, padx=10, pady=8)
-        tk.Button(frame_l_t, text='选 择', bg='#D7D7D7').pack(side=tk.LEFT, pady=10, ipadx=10)
+        tk.Button(frame_l_t, text='选 择', bg='#D7D7D7',
+                  command=record_filepath_hid).pack(side=tk.LEFT, pady=10, ipadx=10)
         frame_l_t.pack(side=tk.TOP, fill=tk.X)
 
         frame_l_b = tk.Frame(parent, bg='white')
+
+        def record_hid():
+            hid = ety_hid.get()
+            if hid:
+                self.record_hid(hid)
+                return
+            tk.messagebox.showwarning(title='Warning',
+                                      message='没有获取到可存储的设备ID ')
+
         tk.Label(frame_l_b, text='设备ID   ', bg='white').pack(side=tk.LEFT)
         ety_hid = tk.Entry(frame_l_b, width=45)
         ety_hid.pack(side=tk.LEFT, padx=10)
-        tk.Button(frame_l_b, text='保 存', bg='#D7D7D7').pack(side=tk.LEFT, ipadx=10)
+        tk.Button(frame_l_b, text='保 存', bg='#D7D7D7', command=record_hid).pack(side=tk.LEFT, ipadx=10)
         frame_l_b.pack(side=tk.BOTTOM, fill=tk.X)
 
     def draw_frame_bottom_statistic_debug(self, parent):
