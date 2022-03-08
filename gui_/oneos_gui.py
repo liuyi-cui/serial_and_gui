@@ -122,6 +122,13 @@ class OneOsGui:
         self.frame_product = None
         self.frame_debug = None
 
+    @property
+    def is_open(self):
+        if self.__conn_type.conn_type.get() == '串口通信':
+            return self.port_com.is_open
+        else:
+            return self.jlink_com.is_open
+
     def __update_statistic(self, text='', fg='white'):
         """
         更新结果展示
@@ -294,7 +301,7 @@ class OneOsGui:
             idx_ = tree.item(i)['values'][0]
             if key_word == values:  # 是子集
                 if content[-1] == '失败':
-                    tree.item(i, values=(idx_, *content), tag='tag_failed')
+                    tree.item(i, values=(idx_, *content), tags='tag_failed')
                 else:
                     tree.item(i, values=(idx_, *content))
                 return
@@ -1398,7 +1405,6 @@ class OneOsGui:
             """点击串口按钮"""
             if self.__conn_type.conn_type.get() == '串口通信' and self.__conn_type.mode == self.__mode_type.get():
                 return
-            print('更新为串口通信')
             frame_3.pack_forget()
             frame_2.pack(side=tk.TOP, fill=tk.BOTH)
             self.__conn_type.swith_to_port(self.__mode_type.get())  # 更新为串口通信
@@ -1598,8 +1604,26 @@ class OneOsGui:
         ## 文字提示
         tk.Label(frame_r, text='与设备交\n互，读设备\n信息，写\nLicense等操\n作', bg='white',
                  fg='#707070').pack(padx=10, pady=10)
+
+        def clean_1():
+            """
+            清除个别控件的展示信息
+            Returns:
+
+            """
+            # 清空设备ID
+            hid.set('')
+            # 清空license展示
+            for i in tree_1.get_children():
+                tree_1.delete(i)
+            # 清空组件ID
+            etn_component.delete(0, tk.END)
+            # 清空License
+            etn_license.delete(0, tk.END)
+
+
         ## 清除按钮
-        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='#D7D7D7').pack(
+        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='#D7D7D7', command=clean_1).pack(
             side=tk.BOTTOM, padx=10, pady=10, ipadx=10
         )
         frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
@@ -1628,7 +1652,7 @@ class OneOsGui:
         tk.Label(frame_l_m, text='License\n详情', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
         ### 执行按钮
         tk.Button(frame_l_m, text='读取License', bg='#D7D7D7'
-                  ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=3)
+                  ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=3)  # TODO 绑定读取License方法
         ### 展示表格
         frame_inner = tk.Frame(frame_l_m)
         columns = ['组件ID', 'License']
@@ -1671,7 +1695,7 @@ class OneOsGui:
         etn_license = tk.Entry(frame_2, width=45)
         etn_license.pack(side=tk.LEFT, padx=10)
         ### 执行按钮
-        tk.Button(frame_2, text='写License', bg='#D7D7D7'
+        tk.Button(frame_2, text='写License', bg='#D7D7D7', command=self.write_license(etn_component, etn_license),
                   ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=8, ipady=3)
         frame_2.pack(side=tk.TOP, fill=tk.BOTH)
         frame_l_b.pack(side=tk.TOP, fill=tk.BOTH, padx=1, pady=2)
@@ -1683,8 +1707,17 @@ class OneOsGui:
         ## 文字提示
         tk.Label(frame_r, text='与设备交\n互，可批量\n写license操\n作', bg='white',
                  fg='#707070').pack(padx=2, pady=10)
+
+        def clean_2():
+            """清除一些控件的信息展示"""
+            # 清除设备ID
+            ety_hid.delete(0, tk.END)
+            # 清除获取到的license信息
+            for i in tree.get_children():
+                tree.delete(i)
+
         ## 清除按钮
-        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='#D7D7D7').pack(
+        tk.Button(frame_r, text='清除', font=('微软雅黑', 8), bg='#D7D7D7', command=clean_2).pack(
             side=tk.BOTTOM, padx=10, pady=10, ipadx=10
         )
         frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
@@ -1727,7 +1760,7 @@ class OneOsGui:
         frame_l_t_r = tk.Frame(frame_l_t, padx=1, pady=2, width=265, height=100)
         #### TODO 具体细节代码
         frame_l_t_r_license_file = tk.Frame(frame_l_t_r, bg='white')  # 当来源为license-file时候展示
-        tk.Label(frame_l_t_r_license_file, text='保存设备ID到文件...', bg='white').pack(anchor='nw', pady=10)
+        tk.Label(frame_l_t_r_license_file, text='选择本地License文件...', bg='white').pack(anchor='nw', pady=10)
         ety_license_file = tk.Entry(frame_l_t_r_license_file, textvariable=self.__filepath_license, width=25)
         ety_license_file.pack(side=tk.LEFT, padx=15)
         tk.Button(frame_l_t_r_license_file, text='选择', bg='#D7D7D7', width=5,
@@ -1758,7 +1791,26 @@ class OneOsGui:
 
         def get_license():
             """根据用户输入的设备ID，通过本地license文件/UKey查找相应的license"""
-            print('获取entry控件的输入值，根据license文件或者ukey查找对应的组件-license')
+            hid = ety_hid.get()
+            if not hid:
+                tk.messagebox.showwarning(title='Warning',
+                                          message='请输入查找License的组件ID')
+                return
+            if not self.__filepath_license.get():
+                tk.messagebox.showwarning(title='Warning',
+                                          message='请先选择本地license文件')
+                return
+
+            component_license_map = self.hid_license_map.hid_license_map.get(hid)
+            if not component_license_map:
+                self.log_shower_insert(f'设备ID{hid}本地license文件没有查找到对应的license\n', 'error')
+                return
+            # 先清空展示信息
+            for i in tree.get_children():
+                tree.delete(i)
+            for component_id, license_ in component_license_map.items():
+                tree.insert('', tk.END, values=(component_id, license_))
+            self.log_shower_insert(f'设备ID{hid}从本地获取License完成\n')
 
         tk.Label(frame_l_m, text='设备ID', bg='white').pack(side=tk.LEFT, pady=10, padx=2)
         ety_hid = tk.Entry(frame_l_m, width=30)
@@ -1771,7 +1823,6 @@ class OneOsGui:
         ### treeview展示查找到的组件-license信息，以及执行写入按钮
         #### 执行按钮
         frame_l_b_r = tk.Frame(frame_l_b, width=100, height=170, bg='white')
-        tk.Button(frame_l_b_r, text='批量写license', bg='#D7D7D7').pack(anchor='nw', padx=5)
         frame_l_b_r.pack(side=tk.RIGHT)
         frame_l_b_r.pack_propagate(0)
         #### 展示license的treeview
@@ -1781,6 +1832,8 @@ class OneOsGui:
         sb.pack(side=tk.RIGHT, fill=tk.Y)
         tree = ttk.Treeview(frame_l_b_l, columns=columns, displaycolumns=columns,
                             show='headings', yscrollcommand=sb.set, height=4)
+        tk.Button(frame_l_b_r, text='批量写license', bg='#D7D7D7', command=self.write_license_tree(tree)).pack(anchor='nw', padx=5)
+
         sb.config(command=tree.yview)
         frame_l_b_l.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=10)
         ##### 设置文字居中，以及表格宽度
@@ -1789,12 +1842,6 @@ class OneOsGui:
         #####  设置头部标题
         for column in columns:
             tree.heading(column, text=column)
-        ##### 往表格里添加数据 TODO 真实的添加逻辑
-        contents = [(1002, 'l7JnPeubhXy0LDrsaftMOI='),
-                    (1003, 'l8JnPeubhXy0LDrsaftMOI='),
-                    (1004, 'l9JnPeubhXy0LDrsaftMOI=')]
-        for idx, content in enumerate(contents):
-            tree.insert('', idx, values=content)
         tree.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
         frame_l_b_l.pack_propagate(0)
         frame_l_b.pack(side=tk.TOP, fill=tk.X)
@@ -2179,6 +2226,7 @@ class OneOsGui:
         except Exception as e:
             logger.exception(e)
             self.log_shower_insert('写入license失败\n')
+            return
 
         try:
             resp = serial_obj.read_response()
@@ -2212,6 +2260,80 @@ class OneOsGui:
                                        f'指令{payload_data.command}数据{payload_data.data}\n')
         else:  # 没有正确获取到返回
             self.log_shower_insert('license写入失败\n', tag='error')
+
+    def write_license(self, etn_component, etn_license):
+        """
+        一次写license操作
+        Args:
+            etn_component: 用于用户输入组件ID的Entry控件
+            component_id: 用于用户输入License的Entry控件
+
+        Returns:
+
+        """
+        def inner():
+            component_id = etn_component.get()
+            print(f'组件id：{component_id}')
+            license_ = etn_license.get()
+            license_ = b64tostrhex(license_)
+            print(f'license: {license_}')
+            logger.info(f'component id: {component_id}\nlicense: {license_}')
+
+            if not self.is_open:
+                tk.messagebox.showerror(title='Error',
+                                        message='请先同设备建立串口连接/J-Link连接')
+                return
+            if not component_id or not license_:
+                tk.messagebox.showerror(title='Error',
+                                        message='请输入组件ID和License')
+                return
+
+            protocol = build_protocol(license_, component_id=component_id,
+                                      command=ProtocolCommand.license_put_request.value)
+            if self.__conn_type.conn_type.get() == '串口通信':
+                if not self.send_license(self.port_com, protocol):  # 写license方法
+                    self.log_shower_insert(f'{component_id}写入license{license_[:20]}...失败\n', tag='warn')
+                    return
+                self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
+            else:
+                pass  # TODO J-Link方式的一次写license方法
+
+        return inner
+
+    def write_license_tree(self, tree):
+        """
+        批量写license
+        Args:
+            tree:
+
+        Returns:
+
+        """
+        def inner():
+            for i in tree.get_children():
+                component_id, license_ = tree.item(i).get('values')
+                print(f'组件id：{component_id}')
+                license_ = b64tostrhex(license_)
+                print(f'license: {license_}')
+                logger.info(f'component id: {component_id}\nlicense: {license_}')
+
+                if not self.is_open:
+                    tk.messagebox.showerror(title='Error',
+                                            message='请先同设备建立串口连接/J-Link连接')
+                    return
+
+                protocol = build_protocol(license_, component_id=component_id,
+                                          command=ProtocolCommand.license_put_request.value)
+                if self.__conn_type.conn_type.get() == '串口通信':
+                    if not self.send_license(self.port_com, protocol):  # 写license方法
+                        self.log_shower_insert(f'{component_id}写入license{license_[:20]}...失败\n', tag='warn')
+                        return
+                    self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
+                else:
+                    pass  # TODO J-Link方式的一次写license方法
+
+        return inner
+
 
     def run(self):
         self.window_.mainloop()
