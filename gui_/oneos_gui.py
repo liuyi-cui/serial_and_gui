@@ -10,6 +10,7 @@ from tkinter import filedialog
 from serial.serialutil import SerialException
 from pathlib import Path
 
+from dao import HID_License_Map, DaoException
 from serial_.pyboard import PyBoard  # 串口通信对象
 from jlink_.pyjlink import JLinkCOM  # JLink通信对象
 from ukey_.pyukey import PyUKey  # UKey通信对象
@@ -17,7 +18,8 @@ from log import logger, OperateLogger  # 软件记录日志， 操作流程记�
 from utils.entities import *
 from utils.file_utils import *
 from utils.utility import is_hex
-from utils.protocol_utils import parse_protocol, check_command
+from utils.convert_utils import *
+from utils.protocol_utils import parse_protocol, check_command, build_protocol, check_payload
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
@@ -27,7 +29,7 @@ _ACTIVE_COLOR = 'green'  # 默认激活状态颜色
 _NORMAL_COLOR = 'black'  # 默认正常状态颜色
 SIZE_POPUPS = (400, 280)  # 弹出窗体大小
 MAX_RETRY_TIME = 5  # 最大重复操作次数
-MAX_INTERVAL_SECOND = timedelta(30)  # 连续失败的最长持续时间为30s
+MAX_INTERVAL_SECOND = timedelta(seconds=6)  # 连续失败的最长持续时间为30s
 
 
 def center_window(win, width=None, height=None):
@@ -115,6 +117,7 @@ class OneOsGui:
         self.__filepath_license = tk.StringVar()  # License存储文件路径
         self.operate_start_time = datetime.now()  # 生成模式中，操作的开始时间
         self.retry_time = 0  # 失败的持续次数
+        self.last_success_hid = ''  # 上一次成功的设备HID
 
     def __update_statistic(self, text='', fg='white'):
         """
@@ -422,6 +425,21 @@ class OneOsGui:
         if filepath != '':
             if check_file_suffix(filepath):
                 self.__filepath_license.set(filepath)
+                try:
+                    self.hid_license_map = HID_License_Map(filepath)  # hid-license映射对象
+                except DaoException as e:
+                    tkinter.messagebox.showerror(title='Error',
+                                                 message=str(e))
+                    self.__filepath_license.set('')
+                    return
+                except Exception as e:
+                    tkinter.messagebox.showerror(title='Error',
+                                                 message='读取license存储文件失败，请检查文件格式是否正确')
+                    self.__filepath_license.set('')
+                self.log_shower_insert(f'导入license文件，'
+                                       f'共导入HID{len(set(self.hid_license_map.hids))}个, '
+                                       f'license{self.hid_license_map.licenses_counts}个\n')
+
             else:
                 tk.messagebox.showwarning(title='Warning',
                                           message='License存储文件为Excel类型文件')
@@ -1292,20 +1310,20 @@ class OneOsGui:
         ## 设置滚动条
         sb_2 = tk.Scrollbar(frame_license_ret_display)
         sb_2.pack(side=tk.RIGHT, fill=tk.Y)
-        tree_2 = ttk.Treeview(frame_license_ret_display, columns=columns_2,
+        self.tree_license = ttk.Treeview(frame_license_ret_display, columns=columns_2,
                               displaycolumns=displaycolumns_2, show='headings',
                               yscrollcommand=sb_2.set)
-        sb_2.config(command=tree_2.yview)
+        sb_2.config(command=self.tree_license.yview)
         ## 设置结果为失败的行标签对应的字体颜色
-        tree_2.tag_configure('tag_failed', foreground='red')
+        self.tree_license.tag_configure('tag_failed', foreground='red')
         ## 设置表格文字居中，以及表格宽度
         for column in columns_2:
-            tree_2.column(column, anchor='center', width=90, minwidth=90)
+            self.tree_license.column(column, anchor='center', width=90, minwidth=90)
         ## 设置表格头部标题
         for column in columns_2:
-            tree_2.heading(column, text=column)
+            self.tree_license.heading(column, text=column)
         ## 往表格内添加内容  TODO 以二维列表形式存储写license操作的结果[(序号，设备ID，组件ID，结果), ...]
-        tree_2.pack(side=tk.TOP, fill=tk.BOTH, padx=15, pady=20)
+        self.tree_license.pack(side=tk.TOP, fill=tk.BOTH, padx=15, pady=20)
         return frame_hid_ret_display, frame_license_ret_display
 
     def draw_start_button(self, parent):
@@ -1334,7 +1352,8 @@ class OneOsGui:
                         t = Thread(target=self.read_id, daemon=True)
                         t.start()
                     elif self.__operate_type.get() == 'LICENSE_FILE':  # 根据license文件写license操作
-                        self.write_license_by_file()
+                        t = Thread(target=self.write_license_by_file, daemon=True)
+                        t.start()
                     elif self.__operate_type.get() == 'LICENSE_UKEY':  # 根据UKey进行写license操作
                         self.write_license_by_ukey()
                 # 因为开始按钮只存在于生产模式界面，所以没有其余分支
@@ -1967,7 +1986,180 @@ class OneOsGui:
         """
         pass
 
+    def write_license_by_file(self, if_keep=True):
+        """
+        根据License文件写License操作
+        Args:
+            if_keep: 是否是持续操作
 
+        Returns:
+
+        """
+        if self.__conn_type.conn_type.get() == '串口通信':
+            if if_keep:
+                self.retry_time = 0
+                self.operate_start_time = datetime.now()
+                while True:
+                    self.__update_statistic()
+                    time.sleep(1)
+                    print(f'时间间隔: {datetime.now() - self.operate_start_time}')
+                    if self.retry_time >= MAX_RETRY_TIME:
+                        self.log_shower_insert('连接未操作时间过长，自动断开连接\n\n', tag='warn')
+                        self.__update_statistic('停 止', 'blue')
+                        self.__turn_off()
+                        break
+                    if (datetime.now() - self.operate_start_time) > MAX_INTERVAL_SECOND:
+                        self.log_shower_insert('持续失败时间超时，自动断开连接\n\n', tag='warn')
+                        self.__update_statistic('停 止', 'blue')
+                        self.__turn_off()
+                        break
+                    self.write_license_by_file_port()
+                    self.disconnect_to_board()
+                    time.sleep(1)
+            else:
+                self.write_license_by_file_port()
+        elif self.__conn_type.conn_type.get() == 'J-Link通信':
+            if if_keep:
+                pass  # 持续地写license操作
+            else:
+                self.write_license_by_file_jlink()
+
+    def write_license_by_file_port(self):
+        """
+        串口通讯方式写License
+        Returns:
+
+        """
+        if_port_connected = self.connect_to_port()
+        if if_port_connected:  # 串口已经连接
+            try:
+                hid_response = self.port_com.get_HID()
+            except Exception as e:
+                return
+            else:
+                if hid_response is None:
+                    self.log_shower_insert(f'获取设备HID失败\n', tag='error')
+                    self.__update_statistic('失 败', fg='red')
+                    return
+            logger.info('get hid response')
+            try:
+                board_protocol = parse_protocol(hid_response)
+            except Exception as e:
+                return
+
+            if not check_command(board_protocol.payload_data.command, 'hid_response'):  # 指令校验失败
+                logger.warning(f'指令校验失败，预期为0081，收到{board_protocol.payload_data.command}, '
+                               f'数据{board_protocol.payload_data.data}')
+                error_type = Error_Data_Map.get(board_protocol.payload_data.data)
+                logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}')
+                if error_type is not None:
+                    self.log_shower_insert(f'hid读取错误, '
+                                           f'指令{board_protocol.payload_data.command} 错误类型{error_type}\n')
+                else:
+                    self.log_shower_insert(f'hid读取错误, '
+                                           f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
+
+                self.log_shower_insert(f'设备写入license失败：读取hid失败\n', tag='error')
+                self.__update_statistic('失 败', fg='red')
+                return
+            logger.info('parse hid success')
+            hid_value = board_protocol.payload_data.data
+            self.log_shower_insert(f'获取设备HID成功，HID {hid_value}\n')
+            if hid_value != self.last_success_hid:  # 仅判断当前设备ID是否和刚刚写的设备ID重复
+                self.retry_time = 0
+                hid_license = self.hid_license_map.get_license(hid_value)
+                if not hid_license:  # 没有获取到该HID对应的license
+                    logger.warning(f'{hid_value} 没有获取到license')
+                    self.log_shower_insert('license写入失败: license文件中没有找到该设备ID\n')
+                    self.__update_statistic('失 败', fg='red')
+                    return
+                self.log_shower_insert(f'对设备{hid_value}，写入license\n')
+                if_success = True
+                for component_id, license_ in hid_license.items():
+                    try:
+                        license_ = b64tostrhex(license_)
+                    except Exception as e:
+                        self.tree_insert((hid_value, component_id, '失败'), self.tree_license)
+                        logger.error(f'license {license_}转码错误')
+                        self.log_shower_insert(f'{component_id}写入license{str(license_)[:20]}...失败，'
+                                               f'license转码错误\n', tag='warn')
+                        if_success = False
+                        continue
+                    protocol = build_protocol(license_, component_id=component_id,
+                                              command=ProtocolCommand.license_put_request.value)
+                    if not self.send_license(self.port_com, protocol):  # 写license方法
+                        if_success = False
+                        self.tree_insert((hid_value, component_id, '失败'), self.tree_license)
+                        self.log_shower_insert(f'{component_id}写入license{license_[:20]}...失败\n', tag='warn')
+                        continue
+                    self.tree_insert((hid_value, component_id, '成功'), self.tree_license)
+                    self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
+                if if_success:
+                    self.operate_start_time = datetime.now()
+                    self.log_shower_insert(f'设备{hid_value}写入license成功\n', tag='confirm')
+                    self.__update_statistic('成 功', fg='green')
+                else:  # 组件的license并没有全部写入成功
+                    self.log_shower_insert(f'设备{hid_value}写入license失败\n', tag='error')
+                    self.__update_statistic('失 败', fg='red')
+            else:
+                self.retry_time += 1
+                self.__update_statistic('已完成', fg='green')
+                self.log_shower_insert(f'设备{hid_value}已经写入过license，请更换设备...\n', tag='warn')
+                time.sleep(2)
+
+    def send_license(self, serial_obj, protocol):
+        """
+        写license流程
+        Args:
+            serial_obj: 串口连接对象
+            protocol: 写license协议
+
+        Returns:
+
+        """
+        logger.info(f'send license start：{protocol}')
+        try:
+            serial_obj.send_license(protocol)
+        except SerialException as e:
+            logger.warning('串口无法访问')
+            self.log_shower_insert('串口无法通信\n')
+            return
+        except Exception as e:
+            logger.exception(e)
+            self.log_shower_insert('写入license失败\n')
+
+        try:
+            resp = serial_obj.read_response()
+        except SerialException as e:
+            logger.warning('未获取到license写入结果')
+            self.log_shower_insert('未获取到license写入结果\n')
+            return
+        except Exception as e:
+            logger.exception(e)
+            self.log_shower_insert('获取license写入结果失败\n')
+            return
+        logger.info(f'get response: {resp}')
+        if resp is not None:
+            try:
+                board_protocol = parse_protocol(resp)
+            except Exception as e:
+                logger.exception(e)
+                return
+            payload_data = board_protocol.payload_data
+            if check_payload(payload_data, 'license_put_response'):
+                logger.info('license写入成功')
+                self.log_shower_insert('license写入成功\n', tag='confirm')
+                return True
+            error_type = Error_Data_Map.get(payload_data.data)
+            logger.info(f'license写入失败，指令{payload_data.command}')
+            if error_type is not None:
+                self.log_shower_insert(f'license写入错误, '
+                                       f'指令{payload_data.command} 错误类型{error_type}\n')
+            else:
+                self.log_shower_insert(f'license写入错误, '
+                                       f'指令{payload_data.command}数据{payload_data.data}\n')
+        else:  # 没有正确获取到返回
+            self.log_shower_insert('license写入失败\n', tag='error')
 
     def run(self):
         self.window_.mainloop()
