@@ -20,6 +20,8 @@ class PyUKeyException(Exception):
 class BaseInfo:
     """基本文件信息"""
 
+    ALGORITHM_TYPE_MAP = {1: 'SM4', 2: 'AES'}
+
     def __init__(self, base_value):
         """
         根据从ukey读取到的基本信息文件的数据，解析得到对应的基本信息
@@ -42,9 +44,9 @@ class BaseInfo:
             length = int(base_value[start_index+2: start_index+4], 16) * 2
             value = base_value[start_index+4: start_index+4+length]
             if tag == '01':  # 授权的license额度
-                self.authorized_license_quota = value
+                self.authorized_license_quota = int(value, 16)
             elif tag == '02':  # 算法类型
-                self.algorithm_type = value
+                self.algorithm_type = self.ALGORITHM_TYPE_MAP.get(int(value))
             elif tag == '03':  # 厂商简称
                 self.manufacturer_code = value
             elif tag == '04':  # UKey编号
@@ -76,10 +78,12 @@ class PyUKey:
     ORI_PID = 'ffffffff'  # 初始化的产品ID
     ORI_USERPIN = '12345678'  # 出厂默认的USERPIN
     ORI_ADMINPIN = 'ffffffffffffffff'  # 出厂默认的ADMINPIN
+    PRODUCT_PREFIX = 'FT ROCKEY ARM'
 
     def __init__(self, dll_path=dll_path):
         self.is_open = False  # 是否已经同一个UKey建立连接
         self.is_connected = False  # 是否已经通过了PIN码验证
+        self.products = []  # 连接的设备数
         self.handle = None  # UKey连接句柄
         self.ukey_pool = None  # 当前连接的UKey设备数
         if Path(dll_path).exists():
@@ -94,6 +98,7 @@ class PyUKey:
         ret = self.hinst.DON_Find(self.ORI_PID.encode(), ctypes.byref(n_count))
         if ret == 0:
             self.ukey_pool = n_count.value
+            self.products = [f'{self.PRODUCT_PREFIX} {i}' for i in range(1, self.ukey_pool+1)]
 
     def open_don(self, don_index):
         """
@@ -114,8 +119,10 @@ class PyUKey:
         if ret == 0:
             self.is_open = True
             self.handle = handle
+        else:
+            raise PyUKeyException(f'{ret&0xffffffff}')
 
-    def verify_pin(self, n_flags, p_pin=None):
+    def verify_pin(self, n_flags=0, p_pin=None):
         """
         验证PIN码
         Args:
@@ -138,10 +145,13 @@ class PyUKey:
                 else:
                     raise PyUKeyException('PIN码类型只支持0/1')
             ret = self.hinst.DON_VerifyPIN(self.handle, n_flags, p_pin.encode(), ctypes.byref(n_remain_count))
-            if n_remain_count.value == 0:
-                raise PyUKeyException('目标设备该类型PIN码验证已锁死')
-            self.is_connected = True
-            return True
+            if ret == 0:
+                self.is_connected = True
+                return True
+            else:
+                if n_remain_count.value == 0:
+                    raise PyUKeyException('目标设备该类型PIN码验证已锁死')
+                raise PyUKeyException(f'目标UKey PIN码验证失败，{ret}-{n_remain_count.value}')
         else:
             raise PyUKeyException('请先同UKey建立连接')
 

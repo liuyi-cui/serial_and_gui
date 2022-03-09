@@ -669,7 +669,22 @@ class OneOsGui:
 
             def refresh_ukey_product(event):
                 self.ukey_com.find()
+                # 刷新下拉选项框的值
                 cb_ukey.configure(values=self.ukey_com.products)
+                # 匿名访问每一个ukey设备，并打印设备基本信息
+                for product in self.ukey_com.products:
+                    don_index = int(product[len(self.ukey_com.PRODUCT_PREFIX)+1:])
+                    self.ukey_com.open_don(don_index)
+                    self.ukey_com.read_file(0x1001)
+                    base_info = self.ukey_com.base_info
+                    self.log_shower_insert(f'{product:}\n', 'warn')
+                    self.log_shower_insert(f'    UKey编号：{base_info.ukey_no}\n'
+                                           f'    用户ID：{base_info.user_id}\n'
+                                           f'    账户ID：{base_info.account_id}\n'
+                                           f'    芯片型号：{base_info.chip_model}\n'
+                                           f'    厂商简称：{base_info.manufacturer_code}\n'
+                                           f'    License授权额度：{base_info.authorized_license_quota}\n'
+                                           f'    License加密算法：{base_info.algorithm_type}')
 
             tk.Label(frame_ukey, text='UKey选择', padx=30, pady=10).pack(side=tk.LEFT, fill=tk.Y)
             cb_ukey = ttk.Combobox(frame_ukey, values=self.ukey_com.products, width=30)
@@ -1325,10 +1340,19 @@ class OneOsGui:
         ## 灰色小字
         frame_2 = tk.Frame(frame_license_ukey_display, bg='white')
         ## TODO 此处需要添加一个图片(表示USB)
+
+        def enter(event):
+            label_ukey.configure(fg='green')
+
+        def leave(event):
+            label_ukey.configure(fg='gray')
+
         label_ukey = tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
                  padx=15, font=('微软雅黑', 9), bg='white')  # TODO 此处需要绑定UKey pin的验证弹窗
         label_ukey.pack(side=tk.LEFT)
         label_ukey.bind('<Button-1>', self.alter_ukey_connect(frame_license_ukey_display))
+        label_ukey.bind('<Enter>', enter)
+        label_ukey.bind('<Leave>', leave)
         frame_2.pack(side=tk.TOP, expand=True, fill=tk.X)
         ## 底层占位
         frame_place_holder_3 = tk.Frame(frame_license_ukey_display, bg='white')
@@ -1696,8 +1720,13 @@ class OneOsGui:
         ## 具体细节代码
         ### 文字标签
         tk.Label(frame_l_m, text='License\n详情', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
+
+        def read_license():
+            license_value = self.read_license()
+            print('licens_value: ', license_value)
+
         ### 执行按钮
-        tk.Button(frame_l_m, text='读取License', bg='#D7D7D7'
+        tk.Button(frame_l_m, text='读取License', bg='#D7D7D7', command=read_license,
                   ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=3)  # TODO 绑定读取License方法
         ### 展示表格
         frame_inner = tk.Frame(frame_l_m)
@@ -1714,13 +1743,13 @@ class OneOsGui:
         #### 设置头部标题
         for column in columns:
             tree_1.heading(column, text=column)
-        #### 往表格里添加数据  TODO 真实的添加逻辑
-        contents = [(1002, 'l7JnPeubhXy0LDrsaftMOI='),
-                    (1003, 'l8JnPeubhXy0LDrsaftMOI='),
-                    (1004, 'l9JnPeubhXy0LDrsaftMOI=')]
-
-        for idx, content in enumerate(contents):
-            tree_1.insert('', idx, values=content)
+        # #### 往表格里添加数据  TODO 真实的添加逻辑
+        # contents = [(1002, 'l7JnPeubhXy0LDrsaftMOI='),
+        #             (1003, 'l8JnPeubhXy0LDrsaftMOI='),
+        #             (1004, 'l9JnPeubhXy0LDrsaftMOI=')]
+        #
+        # for idx, content in enumerate(contents):
+        #     tree_1.insert('', idx, values=content)
         tree_1.pack(side=tk.LEFT, fill=tk.X)
 
         frame_l_m.pack(side=tk.TOP, fill=tk.X, padx=1)
@@ -1822,10 +1851,19 @@ class OneOsGui:
         ## 灰色小字
         frame_2 = tk.Frame(frame_l_t_r_license_ukey, bg='white')
         ## TODO 此处需要添加一个图片(表示USB)
+
+        def enter(event):
+            label_ukey.configure(fg='green')
+
+        def leave(event):
+            label_ukey.configure(fg='gray')
+
         label_ukey = tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
                               padx=15, font=('微软雅黑', 12), bg='white')  # TODO 此处需要绑定UKey pin的验证弹窗
         label_ukey.pack(side=tk.BOTTOM)
         label_ukey.bind('<Button-1>', self.alter_ukey_connect(frame_l_t_r_license_ukey))
+        label_ukey.bind('<Enter>', enter)
+        label_ukey.bind('<Leave>', leave)
         frame_2.pack(side=tk.TOP, expand=True, fill=tk.X)
 
         frame_l_t_r_license_file.pack(side=tk.TOP, expand=True, fill=tk.BOTH, padx=1, pady=2)
@@ -2414,6 +2452,59 @@ class OneOsGui:
                     pass  # TODO J-Link方式的一次写license方法
 
         return inner
+
+    def read_license(self):
+        """读取license方法"""
+        if not self.is_open_s:
+            tk.messagebox.showerror(title='Error',
+                                    message='请先同设备建立串口连接/J-Link连接')
+            return
+        if self.__conn_type.conn_type.get() == '串口通信':  # 串口方式读取license情况
+            try:
+                license_response = self.port_com.get_license()
+            except SerialException as e:
+                logger.warning('串口访问异常', exc_info=e)
+                self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
+                self.disconnect_to_board()
+                return
+            except Exception as e:
+                logger.warning('串口访问异常', e)
+                self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
+                self.disconnect_to_board()
+                return
+            if license_response is None:
+                self.log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
+                self.disconnect_to_board()
+                return
+
+            try:
+                board_protocol = parse_protocol(license_response)
+            except Exception as e:
+                self.log_shower_insert(f'解析及校验License response失败\n', tag='error')
+                self.disconnect_to_board()
+                return
+                # 指令校验
+            if not check_command(board_protocol.payload_data.command, 'license_read_response'):  # 校验失败
+                logger.warning(f'指令校验失败, 预期为0084，收到{board_protocol.payload_data.command}',
+                               f'数据为{board_protocol.payload_data.data}')
+                error_type = Error_Data_Map.get(board_protocol.payload_data.data)
+                if error_type is not None:
+                    logger.info(f'license读取失败，指令{board_protocol.payload_data.command}，')
+                    self.log_shower_insert(f'license读取错误, '
+                                           f'指令{board_protocol.payload_data.command} 错误类型{error_type}\n')
+                else:
+                    logger.info(f'license读取失败，指令{board_protocol.payload_data.command}，')
+                    self.log_shower_insert(f'license读取错误, '
+                                           f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
+                self.log_shower_insert(f'解析及校验License response失败\n', tag='error')
+                self.disconnect_to_board()
+                return
+
+            license_value = board_protocol.payload_data.data
+            return license_value
+
+        elif self.__conn_type.conn_type.get() == 'J-Link通信':
+            pass  # TODO J-Link方式获取license
 
     def run(self):
         self.window_.mainloop()
