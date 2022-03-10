@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import pylink
+from pathlib import Path
 
-
-DLL_PATH = r'D:\temp\JLink_x64.dll'
+PROJ_PATH = Path(__file__).parent.parent
+# DLL_PATH = r'D:\Projects\python\LicenseManagementTool\files\UKey\Python-x64\Don_API-x64.dll'
+DLL_PATH = Path(PROJ_PATH, 'JLink_x64.dll').as_posix()
 
 
 class JLinkCOMException(Exception):
@@ -145,11 +147,4 @@ class JLinkCOM:
 
 
 if __name__ == "__main__":
-    import time
-
-    jlink_com = JLinkCOM()
-    i = 0
-    while i < 10:
-        print(jlink_com.emulators)
-        time.sleep(1)
-        i += 1
+    print(DLL_PATH)

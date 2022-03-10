@@ -10,9 +10,6 @@ from utils.convert_utils import strhextobytes
 from utils.utility import padding_hex
 
 
-dll_path = r'D:\Projects\python\LicenseManagementTool\files\UKey\Python-x64\Don_API-x64.dll'
-
-
 class PyUKeyException(Exception):
     pass
 
@@ -76,12 +73,12 @@ class BaseInfo:
 
 class PyUKey:
 
-    ORI_PID = 'ffffffff'  # 初始化的产品ID
+    ORI_PID = '38BEE016'  # 初始化的产品ID
     ORI_USERPIN = '12345678'  # 出厂默认的USERPIN
     ORI_ADMINPIN = 'ffffffffffffffff'  # 出厂默认的ADMINPIN
     PRODUCT_PREFIX = 'FT ROCKEY ARM'
 
-    def __init__(self, dll_path=dll_path):
+    def __init__(self, dll_path):
         self.is_open = False  # 是否已经同一个UKey建立连接
         self.is_connected = False  # 是否已经通过了PIN码验证
         self.products = []  # 连接的设备数
@@ -273,6 +270,8 @@ class PyUKey:
             # 调用可执行程序生成license
             ret = self.hinst.DON_RunExeFile(self.handle, int(self.base_info.algorithm_type),
                                             buf, nDataLen, pMainRet)
+            print('ret', ret)
+            print('mainret', pMainRet[0])
             if ret == 0 and pMainRet[0] == 0:
                 res = ''
                 length_res = (buf[0]<<8) | buf[1]

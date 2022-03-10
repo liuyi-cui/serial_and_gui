@@ -20,6 +20,7 @@ from utils.file_utils import *
 from utils.utility import is_hex
 from utils.convert_utils import *
 from utils.protocol_utils import parse_protocol, check_command, build_protocol, check_payload, parse_license
+from setting import DLL_PATH
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
@@ -75,7 +76,7 @@ class OneOsGui:
         """定义属性类型"""
         self.port_com = PyBoard()  # 串口连接对象
         self.jlink_com = JLinkCOM()  # 初始化jlink对象
-        self.ukey_com = PyUKey()  # 初始化ukey对象
+        self.ukey_com = PyUKey(DLL_PATH)  # 初始化ukey对象
         self.__mode_type = tk.StringVar()  # 模式选择(生产模式/调试模式)
         self.__operate_type = tk.StringVar()  # 操作工位(读HID/写License-从License文件/写License-从UKey)
         self.__operate_desc = tk.StringVar()  # 操作工位的描述
@@ -685,6 +686,7 @@ class OneOsGui:
                                            f'    厂商简称：{base_info.manufacturer_code}\n'
                                            f'    License授权额度：{base_info.authorized_license_quota}\n'
                                            f'    License加密算法：{base_info.algorithm_type_name}\n')
+                    self.ukey_com.close()
 
             tk.Label(frame_ukey, text='UKey选择', padx=30, pady=10).pack(side=tk.LEFT, fill=tk.Y)
             cb_ukey = ttk.Combobox(frame_ukey, values=self.ukey_com.products, width=30)
