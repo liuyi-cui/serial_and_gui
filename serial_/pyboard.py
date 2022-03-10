@@ -5,6 +5,7 @@ import serial.tools.list_ports
 import time
 import tkinter as tk
 
+from utils.entities import ProtocolCommand
 from log import logger
 from serial_.conserial import ConSerial
 from utils.convert_utils import strhextobytes, bytestostrhex
@@ -23,8 +24,9 @@ class PyBoard:
         self.status = tk.StringVar()
         self.status.set('断开')
 
-    def __update_state(self):
-        self.is_open = self.con_serial.is_open
+    @property
+    def is_open(self):
+        return self.con_serial.is_open
 
     @retry(logger)
     def open(self, port: str, baudrate: int, stopbits=1, parity='N',
@@ -46,14 +48,11 @@ class PyBoard:
         logger.info(f'连接串口 {port} {baudrate}, ')
         self.con_serial.open(port, baudrate, stopbits=stopbits, parity=parity,
                              bytesize=bytesize, rtscts=rtscts, xonxoff=xonxoff)
-        self.__update_state()
         self.status.set('已连接')
 
     def close(self):
         if self.is_open:
             self.con_serial.close()
-            self.is_open = False
-            self.__update_state()
             self.status.set('断开')
 
     @retry(logger)
@@ -65,6 +64,27 @@ class PyBoard:
         """
         hid_request = build_protocol('')
         command = strhextobytes(hid_request)
+        self.con_serial.write(command)
+        time.sleep(1)
+        ret = None
+        times = 1
+        while not ret and times <= 4:
+            size = self.con_serial.inWaiting()
+            if size:
+                ret = self.con_serial.read(size)  # TODO 分段读取
+            else:
+                logger.warning(f'第{times}次没有获取到数据')
+                times += 1
+                time.sleep(1)
+        logger.info(f'get response {ret}')
+        if ret is not None:
+            return bytestostrhex(ret)
+        return ret
+
+    @retry(logger)
+    def get_license(self):
+        license_request = build_protocol('', command=ProtocolCommand.license_read_request.value)
+        command = strhextobytes(license_request)
         self.con_serial.write(command)
         time.sleep(1)
         ret = None

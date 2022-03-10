@@ -46,7 +46,8 @@ class BaseInfo:
             if tag == '01':  # 授权的license额度
                 self.authorized_license_quota = int(value, 16)
             elif tag == '02':  # 算法类型
-                self.algorithm_type = self.ALGORITHM_TYPE_MAP.get(int(value))
+                self.algorithm_type_name = self.ALGORITHM_TYPE_MAP.get(int(value))
+                self.algorithm_type = value
             elif tag == '03':  # 厂商简称
                 self.manufacturer_code = value
             elif tag == '04':  # UKey编号
@@ -64,7 +65,7 @@ class BaseInfo:
 
     def __repr__(self):
         ret = f'\n授权license额度为 {self.authorized_license_quota}\n' \
-              f'license加密算法类型为 {self.algorithm_type}\n' \
+              f'license加密算法类型为 {self.algorithm_type_name}\n' \
               f'厂商简称为 {self.manufacturer_code}\n' \
               f'UKey编号为 {self.ukey_no}\n' \
               f'用户ID为 {self.user_id}\n' \
@@ -91,6 +92,7 @@ class PyUKey:
         else:
             raise PyUKeyException('请传入正确的Don_API.dll路径')
         self.license = []
+        self.used_license_record_count = None
 
     def find(self):
         """获取当前连接的UKey设备数"""
@@ -177,8 +179,11 @@ class PyUKey:
                 for i in range(data_length):
                     value = hex(p_out_data[i])[2:]
                     res += padding_hex(value)
-                self.base_info = BaseInfo(res)
-                print(self.base_info)
+                if file_id == 0x1001:  # 基本信息文件
+                    self.base_info = BaseInfo(res)
+                    print(self.base_info)
+                elif file_id == 0x2001:  # license剩余额度记录文件
+                    self.used_license_record_count = int(res, 16)
             else:
                 raise PyUKeyException(f'读取数文件失败，返回码为{ret}')
         else:

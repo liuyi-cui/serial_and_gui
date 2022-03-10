@@ -50,8 +50,8 @@ class ProtocolCommand(Enum):
     license_put_request = '0002'  # license烧写指令。上位机发出
     license_put_response = '0082'  # 回复license烧写指令。设备端发出
     license_get_request = '0003'  # license申请指令。设备端发出  TODO设备端什么情况会发出该条指令
-    license_clean_request = '0004'  # license存储分区擦除指令。上位机发出 TODO
-    license_clean_response = '0084'  # 回复license擦除指令结果
+    license_read_request = '0004'  # license存储分区擦除指令。上位机发出 TODO
+    license_read_response = '0084'  # 回复license擦除指令结果
     reset_response = '00c0'  # 复位 因为某些错误，端侧返回复位命令
 
 
@@ -319,8 +319,8 @@ class UKeyInfo:
 
         """
         self.is_open = True
-        self.desc = f'{ukey_name}：用户已认证'
-        self.desc_child = '切换UKey'
+        self.desc.set(f'{ukey_name}：用户已认证')
+        self.desc_child.set('切换UKey')
 
     def close(self):
         self.__init__()

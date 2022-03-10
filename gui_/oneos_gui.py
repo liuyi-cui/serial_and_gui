@@ -19,7 +19,7 @@ from utils.entities import *
 from utils.file_utils import *
 from utils.utility import is_hex
 from utils.convert_utils import *
-from utils.protocol_utils import parse_protocol, check_command, build_protocol, check_payload
+from utils.protocol_utils import parse_protocol, check_command, build_protocol, check_payload, parse_license
 
 _font_s = ('微软雅黑', 8)  # 字体
 _font_b = ('微软雅黑', 12)  # 字体
@@ -684,7 +684,7 @@ class OneOsGui:
                                            f'    芯片型号：{base_info.chip_model}\n'
                                            f'    厂商简称：{base_info.manufacturer_code}\n'
                                            f'    License授权额度：{base_info.authorized_license_quota}\n'
-                                           f'    License加密算法：{base_info.algorithm_type}')
+                                           f'    License加密算法：{base_info.algorithm_type_name}\n')
 
             tk.Label(frame_ukey, text='UKey选择', padx=30, pady=10).pack(side=tk.LEFT, fill=tk.Y)
             cb_ukey = ttk.Combobox(frame_ukey, values=self.ukey_com.products, width=30)
@@ -737,7 +737,13 @@ class OneOsGui:
                                             message=f'PIN码验证失败, {e}')
                     return
                 # ukey 验证成功
-                self.log_shower_insert(f'UKey {ukey_name} PIN码验证通过', tag='confirm')
+                self.log_shower_insert(f'UKey {ukey_name} PIN码验证通过\n', tag='confirm')
+                try:
+                    self.ukey_com.read_file(0x2001)
+                except Exception as e:
+                    tk.messagebox.showerror(title='Error',
+                                            message=str(e))
+                self.log_shower_insert(f'已用License额度: {self.ukey_com.used_license_record_count}\n')
                 self.__ukey_info.update_connected(ukey_name)
 
                 frame.destroy()
@@ -1311,7 +1317,7 @@ class OneOsGui:
         frame_place_holder_2 = tk.Frame(frame_license_file_display, bg='white')
         tk.Label(frame_place_holder_2, pady=10, text=' ', bg='white').pack()
         frame_place_holder_2.pack(side=tk.TOP, expand=True, fill=tk.X)
-        ## 描述文字  TODO 此处命名为frame_1，会覆盖掉读hid界面的frame_1吗？需要测试验证
+        ## 描述文字
         frame_1 = tk.Frame(frame_license_file_display, bg='white')
         tk.Label(frame_1, text='选择本地License文件...', font=('微软雅黑', 12), bg='white',
                  pady=5, padx=15).pack(side=tk.LEFT, fill=tk.X)
@@ -1348,7 +1354,7 @@ class OneOsGui:
             label_ukey.configure(fg='gray')
 
         label_ukey = tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
-                 padx=15, font=('微软雅黑', 9), bg='white')  # TODO 此处需要绑定UKey pin的验证弹窗
+                 padx=15, font=('微软雅黑', 9), bg='white')
         label_ukey.pack(side=tk.LEFT)
         label_ukey.bind('<Button-1>', self.alter_ukey_connect(frame_license_ukey_display))
         label_ukey.bind('<Enter>', enter)
@@ -1443,7 +1449,8 @@ class OneOsGui:
                             t = Thread(target=self.write_license_by_file, daemon=True)
                             t.start()
                         elif self.__operate_type.get() == 'LICENSE_UKEY':  # 根据UKey进行写license操作
-                            self.write_license_by_ukey()
+                            t = Thread(target=self.write_license_by_ukey, daemon=True)
+                            t.start()
                 except Exception as e:
                     logger.exception(e)
                     self.disconnect_to_board()
@@ -1461,7 +1468,6 @@ class OneOsGui:
 
     def draw_frame_statistic(self, parent):
         # 执行结果信息展示界面
-        # TODO 此处应该使用变量，并且记录该Label，插入时候控制字体颜色
         self.statistic_product_label = tk.Label(parent, font=('微软雅黑', 24), bg='white')
         self.__update_statistic()
         self.statistic_product_label.pack(side=tk.TOP, pady=45)
@@ -1519,8 +1525,8 @@ class OneOsGui:
             frame_2_t_l.pack(side=tk.LEFT, fill=tk.Y)
             ### 右边放置连接按钮
             frame_2_t_r = tk.Frame(frame_2_t, bg='white')
-            self.btn_start_debug = tk.Button(frame_2_t_r, text='串口连接', bg='#D7D7D7', command=self.connect_to_port)
-            self.btn_start_debug.pack(side=tk.BOTTOM, padx=50, pady=5)  # TODO 串口连接
+            self.btn_start_debug_port = tk.Button(frame_2_t_r, text='串口连接', bg='#D7D7D7', command=self.connect_to_port)
+            self.btn_start_debug_port.pack(side=tk.BOTTOM, padx=50, pady=5)
             frame_2_t_r.pack(side=tk.RIGHT, fill=tk.Y)
             frame_2_t.pack(side=tk.TOP, fill=tk.X)
 
@@ -1550,7 +1556,17 @@ class OneOsGui:
             frame_3_t_l.pack(side=tk.LEFT, fill=tk.Y)
             ### 右边放置连接按钮
             frame_3_t_r = tk.Frame(frame_3_t, bg='white')
-            tk.Button(frame_3_t_r, text='J-Link连 接', bg='#D7D7D7').pack(side=tk.BOTTOM, padx=50, pady=5)  # TODO J-Link连接
+
+            def connect_to_jlink():
+                if self.btn_start_debug_jlink.configure().get('text')[-1] == 'J-Link连 接':  # 连接
+                    if not self.__jlink_configuration.serial_no:
+                        tk.messagebox.showerror(title='Error')
+                        return
+                    # TODO 进行J-Link连接，并且更改按钮文字和颜色
+
+            self.btn_start_debug_jlink = tk.Button(frame_3_t_r, text='J-Link连 接', bg='#D7D7D7', command=connect_to_jlink)
+
+            self.btn_start_debug_jlink.pack(side=tk.BOTTOM, padx=50, pady=5)  # TODO J-Link连接
             frame_3_t_r.pack(side=tk.RIGHT, fill=tk.Y)
             frame_3_t.pack(side=tk.TOP, fill=tk.X)
 
@@ -1589,7 +1605,7 @@ class OneOsGui:
         工位： 读设备ID/写License(绿色)
         串口状态： 断开(黑色)/XXX 已连接(绿色)
         运行状态： 工作中(绿色)/停止(黑色)
-        """  # TODO 需要添加占位Label
+        """
         # 模式-key
         tk.Label(parent, text='模式：', bg='white').pack(side=tk.LEFT, padx=2)
         # 模式-value
@@ -1619,7 +1635,7 @@ class OneOsGui:
         ## frame_top_l
         frame_top_l = tk.Frame(frame_top)
         ### frame_top_l_1 通讯方式配置项展示界面(340*290)
-        frame_top_l_1 = tk.Frame(frame_top_l, width=320, height=300, bg='red', bd=1, relief='solid')
+        frame_top_l_1 = tk.Frame(frame_top_l, width=320, height=300, bd=1, relief='solid')
         self.draw_frame_connected_type(frame_top_l_1, type='debug')
         frame_top_l_1.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         frame_top_l_1.pack_propagate(0)
@@ -1704,7 +1720,8 @@ class OneOsGui:
         hid = tk.StringVar()
         def get_hid():  # 获取设备ID按钮执行方法
             hid_value = self.read_id(if_keep=False)  # 表示调试模式
-            hid.set(hid_value)
+            if hid_value is not None:
+                hid.set(hid_value)
         ### 文字标签
         tk.Label(frame_l_t, text='设备ID   ', bg='white').pack(side=tk.LEFT, padx=3, ipady=5)
         ### 执行按钮
@@ -1723,11 +1740,13 @@ class OneOsGui:
 
         def read_license():
             license_value = self.read_license()
-            print('licens_value: ', license_value)
+            component_license_map = parse_license(license_value)
+            for component_id, license_length in component_license_map.items():
+                tree_1.insert('', tk.END, values=(component_id, license_length))
 
         ### 执行按钮
         tk.Button(frame_l_m, text='读取License', bg='#D7D7D7', command=read_license,
-                  ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=3)  # TODO 绑定读取License方法
+                  ).pack(side=tk.RIGHT, padx=3, pady=3, ipadx=3)
         ### 展示表格
         frame_inner = tk.Frame(frame_l_m)
         columns = ['组件ID', 'License']
@@ -1743,13 +1762,6 @@ class OneOsGui:
         #### 设置头部标题
         for column in columns:
             tree_1.heading(column, text=column)
-        # #### 往表格里添加数据  TODO 真实的添加逻辑
-        # contents = [(1002, 'l7JnPeubhXy0LDrsaftMOI='),
-        #             (1003, 'l8JnPeubhXy0LDrsaftMOI='),
-        #             (1004, 'l9JnPeubhXy0LDrsaftMOI=')]
-        #
-        # for idx, content in enumerate(contents):
-        #     tree_1.insert('', idx, values=content)
         tree_1.pack(side=tk.LEFT, fill=tk.X)
 
         frame_l_m.pack(side=tk.TOP, fill=tk.X, padx=1)
@@ -1798,8 +1810,6 @@ class OneOsGui:
         frame_r.pack(side=tk.RIGHT, fill=tk.Y, padx=1)
         ## 选择license来源以及展示界面
         frame_l_t = tk.Frame(parent)
-        license_source = tk.StringVar()
-        license_source.set('license_file')
 
         def swith_to_file_license():
             """选择license来源为本地license文件
@@ -1822,13 +1832,18 @@ class OneOsGui:
         #### TODO 具体细节代码
         ##### 文字标签
         tk.Label(frame_l_t_l, text='请选择License来源：', bg='white').pack(anchor='nw', pady=8)
+
         ##### 来源的单选框
-        tk.Radiobutton(frame_l_t_l, text='从文件获取License  ', variable=license_source,
-                       value='license_file', bg='white',
-                       command=swith_to_file_license).pack(side=tk.TOP)
-        tk.Radiobutton(frame_l_t_l, text='从UKey获取License', variable=license_source,
-                       value='license_ukey', bg='white',
-                       command=swith_to_ukey_license).pack(side=tk.TOP)
+        license_source = tk.StringVar()
+        license_source.set('license_file')
+        r1 = tk.Radiobutton(frame_l_t_l, text='从文件获取License  ', variable=license_source,
+                            value='license_file', bg='white', indicatoron=False,
+                            command=swith_to_file_license)
+        r1.pack(side=tk.TOP)
+        r2 = tk.Radiobutton(frame_l_t_l, text='从UKey获取License', variable=license_source,
+                            value='license_ukey', bg='white', indicatoron=False,
+                            command=swith_to_ukey_license)
+        r2.pack(side=tk.TOP)
         frame_l_t_l.pack(side=tk.LEFT)
         frame_l_t_l.pack_propagate(0)
         ### license来源详情界面(文件/UKey)
@@ -1859,7 +1874,7 @@ class OneOsGui:
             label_ukey.configure(fg='gray')
 
         label_ukey = tk.Label(frame_2, textvariable=self.__ukey_info.desc_child, fg='gray',
-                              padx=15, font=('微软雅黑', 12), bg='white')  # TODO 此处需要绑定UKey pin的验证弹窗
+                              padx=15, font=('微软雅黑', 12), bg='white')
         label_ukey.pack(side=tk.BOTTOM)
         label_ukey.bind('<Button-1>', self.alter_ukey_connect(frame_l_t_r_license_ukey))
         label_ukey.bind('<Enter>', enter)
@@ -1897,12 +1912,17 @@ class OneOsGui:
                     tree.insert('', tk.END, values=(component_id, license_))
                 self.log_shower_insert(f'设备ID{hid}从本地获取License完成\n')
             elif self.__operate_type.get() == 'LICENSE_UKEY':  # UKey连接
-                self.ukey_com.read_file(0x1001)  # TODO 获取设备的基本信息。这个其实可以放在选在ukey的绑定方法内部
-                self.ukey_com.get_license(hid)
-                print(self.ukey_com.license)
+                try:
+                    self.ukey_com.read_file(0x1001)
+                    self.ukey_com.get_license(hid)
+                except Exception as e:
+                    tk.messagebox.showerror(title='Error',
+                                            message=str(e))
+                    self.log_shower_insert(f'设备ID{hid}从UKey获取License失败\n', tag='error')
+                    return
                 for content in self.ukey_com.license:
                     tree.insert('', tk.END, values=content)
-                self.log_shower_insert(f'设备ID{hid}从UKey获取License完成\n')
+                self.log_shower_insert(f'设备ID{hid}从UKey获取License完成\n', tag='confirm')
 
         tk.Label(frame_l_m, text='设备ID', bg='white').pack(side=tk.LEFT, pady=10, padx=2)
         ety_hid = tk.Entry(frame_l_m, width=30)
@@ -2034,12 +2054,9 @@ class OneOsGui:
         elif self.__serial_port_configuration.stream_controller == 'XON/XOFF':
             xonxoff = True
         if self.__mode_type.get() == 'DEBUG':  # 调试模式下，需要判断是连接还是断开
-            if self.btn_start_debug.configure().get('text')[-1] == '断 开':
-                self.disconnect_to_board()
-                self.btn_start_debug.configure(text='串口连接', fg='green')
-                self.label_port_status.configure(text='断开', fg='black')
-                self.log_shower_insert(f'串口 {self.__serial_port_configuration.port}断开连接\n',
-                                       tag='error')
+            if self.btn_start_debug_port.configure().get('text')[-1] == '断 开':
+                self.disconnect_to_board()  # 判断是否是调试模式，再按串口/J-Link分支更改后面地按钮展示改动。
+
                 return
 
         self.port_com.open(self.__serial_port_configuration.port,
@@ -2053,7 +2070,7 @@ class OneOsGui:
         if self.port_com.is_open:  # 已连接
             self.__turn_on()  # 改变状态栏
             if self.__mode_type.get() == 'DEBUG':
-                self.btn_start_debug.configure(text='断 开', fg='red')
+                self.btn_start_debug_port.configure(text='断 开', fg='red')
                 self.label_port_status.configure(text=f'{self.__serial_port_configuration.port}已连接', fg='green')
             self.log_shower_insert(f'串口 {self.__serial_port_configuration.port}连接成功\n',
                                    tag='confirm')
@@ -2062,8 +2079,17 @@ class OneOsGui:
                                tag='warn')
 
     def disconnect_to_board(self):
-        self.port_com.close()
-        self.jlink_com.close()
+        if self.port_com.is_open:
+            self.port_com.close()
+            if self.__mode_type.get() == 'DEBUG':  # debug模式下断开连接，需要更新状态展示
+                self.btn_start_debug_port.configure(text='串口连接', fg='green')
+                self.label_port_status.configure(text='断开', fg='black')
+                self.log_shower_insert(f'串口 {self.__serial_port_configuration.port}断开连接\n',
+                                       tag='error')
+        if self.jlink_com.is_opened:
+            self.jlink_com.close()
+            if self.__mode_type.get() == 'DEBUG':
+                pass
 
     def read_id(self, if_keep=True):
         """
@@ -2096,7 +2122,8 @@ class OneOsGui:
                     time.sleep(1)
             else:
                 hid_value = self.read_id_port()  # 进行一次操作
-                self.log_shower_insert(f'设备ID获取成功:{hid_value}\n')
+                if hid_value is not None:
+                    self.log_shower_insert(f'设备ID获取成功:{hid_value}\n')
                 return hid_value
         elif self.__conn_type.conn_type.get() == 'J-Link通信':
             if if_keep:
@@ -2111,61 +2138,61 @@ class OneOsGui:
         Returns:
 
         """
-        if_port_connected = self.connect_to_port()
-        if if_port_connected:  # 已经连接
-            try:
-                hid_response = self.port_com.get_HID()
-            except SerialException as e:
-                logger.warning('串口访问异常', exc_info=e)
-                self.__update_statistic('失 败', fg='red')
-                self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
-                self.disconnect_to_board()
-                return
-            except Exception as e:
-                logger.warning('串口访问异常', e)
-                self.__update_statistic('失 败', fg='red')
-                self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
-                self.disconnect_to_board()
-                return
-            else:
-                if hid_response is None:
-                    self.__update_statistic('失 败', fg='red')
-                    self.log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
-                    self.disconnect_to_board()
-                    return
-            # 以上，已经成功接收到hid返回，以下为写入本地hid文件代码
-            try:
-                board_protocol = parse_protocol(hid_response)
-            except Exception as e:
-                self.__update_statistic('失 败', fg='red')
-                self.log_shower_insert(f'解析及校验HID response失败\n', tag='error')
-                self.disconnect_to_board()
-                return
-             # 指令校验
-            if not check_command(board_protocol.payload_data.command, 'hid_response'):  # 校验失败
-                logger.warning(f'指令校验失败, 预期为0081，收到{board_protocol.payload_data.command}',
-                               f'数据为{board_protocol.payload_data.data}')
-                error_type = Error_Data_Map.get(board_protocol.payload_data.data)
-                if error_type is not None:
-                    logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
-                    self.log_shower_insert(f'hid读取错误, '
-                                                f'指令{board_protocol.payload_data.command} 错误类型{error_type}\n')
-                else:
-                    logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
-                    self.log_shower_insert(f'hid读取错误, '
-                                                f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
-                self.__update_statistic('失 败', fg='red')
-                self.log_shower_insert(f'解析及校验 ID response失败\n', tag='error')
-                self.disconnect_to_board()
-                time.sleep(1)
-                return
-
-            hid_value = board_protocol.payload_data.data
-            return hid_value
-        else:
-            tk.messagebox.showwarning(title='Warning',
-                                      massage='请先连接串口')
+        if not self.is_open_s:
+            tk.messagebox.showerror(title='Error',
+                                    message='请先同设备建立串口连接/J-Link连接')
             return
+
+        try:
+            hid_response = self.port_com.get_HID()
+        except SerialException as e:
+            logger.warning('串口访问异常', exc_info=e)
+            self.__update_statistic('失 败', fg='red')
+            self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
+            self.disconnect_to_board()
+            return
+        except Exception as e:
+            logger.warning('串口访问异常', e)
+            self.__update_statistic('失 败', fg='red')
+            self.log_shower_insert(f'设备ID读取失败，稍后将重试或更换设备\n', tag='error')
+            self.disconnect_to_board()
+            return
+        else:
+            if hid_response is None:
+                self.__update_statistic('失 败', fg='red')
+                self.log_shower_insert('没有从设备获得响应，请检查设备是否正常开启')
+                self.log_shower_insert(f'设备HID读取失败，稍后将重试或更换设备\n', tag='error')
+                self.disconnect_to_board()
+                return
+        # 以上，已经成功接收到hid返回，以下为写入本地hid文件代码
+        try:
+            board_protocol = parse_protocol(hid_response)
+        except Exception as e:
+            self.__update_statistic('失 败', fg='red')
+            self.log_shower_insert(f'解析及校验HID response失败\n', tag='error')
+            self.disconnect_to_board()
+            return
+         # 指令校验
+        if not check_command(board_protocol.payload_data.command, 'hid_response'):  # 校验失败
+            logger.warning(f'指令校验失败, 预期为0081，收到{board_protocol.payload_data.command}',
+                           f'数据为{board_protocol.payload_data.data}')
+            error_type = Error_Data_Map.get(board_protocol.payload_data.data)
+            if error_type is not None:
+                logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                self.log_shower_insert(f'hid读取错误, '
+                                       f'指令{board_protocol.payload_data.command} 错误类型{error_type}\n')
+            else:
+                logger.info(f'hid读取失败，指令{board_protocol.payload_data.command}，')
+                self.log_shower_insert(f'hid读取错误, '
+                                       f'指令{board_protocol.payload_data.command}数据{board_protocol.payload_data.data}\n')
+            self.__update_statistic('失 败', fg='red')
+            self.log_shower_insert(f'解析及校验 ID response失败\n', tag='error')
+            self.disconnect_to_board()
+            time.sleep(1)
+            return
+
+        hid_value = board_protocol.payload_data.data
+        return hid_value
 
     def record_hid(self, hid_value):
         self.log_shower_insert(f'设备ID读取成功\n')
@@ -2392,10 +2419,8 @@ class OneOsGui:
         """
         def inner():
             component_id = etn_component.get()
-            print(f'组件id：{component_id}')
             license_ = etn_license.get()
             license_ = b64tostrhex(license_)
-            print(f'license: {license_}')
             logger.info(f'component id: {component_id}\nlicense: {license_}')
 
             if not self.is_open_s:
@@ -2415,7 +2440,7 @@ class OneOsGui:
                     return
                 self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
             else:
-                pass  # TODO J-Link方式的一次写license方法
+                self.write_license_jlink(license_)  # jlink的一次写license操作
 
         return inner
 
@@ -2449,9 +2474,17 @@ class OneOsGui:
                         continue
                     self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
                 else:
-                    pass  # TODO J-Link方式的一次写license方法
+                    self.write_license_jlink(license_)  # TODO J-Link方式的一次写license方法
 
         return inner
+
+    def write_license_by_ukey(self):
+        """
+        生产模式下，根据UKey进行持续地请求license并写入端侧过程
+        Returns:
+
+        """
+        pass
 
     def read_license(self):
         """读取license方法"""
@@ -2501,6 +2534,7 @@ class OneOsGui:
                 return
 
             license_value = board_protocol.payload_data.data
+            self.log_shower_insert('读取License成功')
             return license_value
 
         elif self.__conn_type.conn_type.get() == 'J-Link通信':

@@ -51,7 +51,8 @@ class TestProtocol:
     def test_parse_protocol(self):
         # data = '5A000e0081000a000035D9C0AE729DB9E0AF'
         # data = '5A000E0081000A0000F3097F67D2B14F2D6C'
-        data = '5A06010203'
+        # data = '5A06010203'
+        data = '5a000c0084000800000101d2078000e7'
         board_protocol = parse_protocol(data)
         payload_data = board_protocol.payload_data
         print('\n')

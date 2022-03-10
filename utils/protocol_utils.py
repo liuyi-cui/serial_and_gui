@@ -168,7 +168,30 @@ def check_payload(payload, command_type: str) -> bool:
         return False
 
 
+def parse_license(license_value, type='port'):
+    """
+    解析串口/J-Link返回读license响应
+    Args:
+        license_value: 响应数据
+        type: port表示串口通信方式，jlink表示J-Link通信方式
+
+    Returns:
+
+    """
+    if type == 'port':
+        ret = dict()  # 组件id：license的字典
+        data_length = 12  # 串口通信方式下，每一段license协议长度为12
+        for i in range(0, len(license_value), data_length):
+            license_data = license_value[i:i+data_length]
+            component_id = f'{license_data[6:8]}{license_data[4:6]}'
+            license_length = f'{license_data[10:12]}{license_data[8:10]}'
+            ret.update({component_id: int(license_length, 16)})
+        return ret
+    elif type == 'jlink':
+        pass
+
+
 if __name__ == '__main__':
-    license_ret = '5A00120081000E0000500048000551383039363935C25A00070084000300000F96'
-    ret = parse_protocol(license_ret)
+    license_ret = '0101D20780000101D10780000101D3078000'
+    ret = parse_license(license_ret)
     print(ret)

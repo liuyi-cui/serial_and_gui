@@ -35,8 +35,13 @@ class TestPyUKey:
         self.py_ukey.read_file(0x1001)
         print(self.py_ukey.base_info)
 
+    def test_read_quota_record_file(self):  # 测试读取license已用额度记录文件
+        don_index = 1
+        self.py_ukey.open_don(don_index)
+        self.py_ukey.read_file(0x2001)
+
     def test_get_license(self):
-        hid = "2B0030001151363136343732"
+        hid = "F3097F67D2B14E2E"
         n_flags = 1
         self.py_ukey.open_don(1)
         ret = self.py_ukey.verify_pin(n_flags)
