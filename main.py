@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from gui_.oneos_gui_ex import OneOsGui
+from gui_.oneos_gui import OneOsGui
 
 
 if __name__ == '__main__':
