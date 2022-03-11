@@ -1210,6 +1210,7 @@ class OneOsGui:
             # 切换统计界面
             self.frame_license_ret_display.pack_forget()
             self.frame_hid_ret_display.pack(side=tk.LEFT, fill=tk.BOTH)
+            self.frame_hid_ret_display.pack_propagate(0)
 
         def swith_to_license_file():
             if self.__operate_desc.get() == '读设备ID':  # 表示从读ID界面切换过来
@@ -1222,6 +1223,7 @@ class OneOsGui:
             self.frame_hid_display.pack_forget()
             self.frame_license_ukey_display.pack_forget()
             self.frame_license_file_display.pack(side=tk.TOP, fill=tk.X)
+            self.frame_license_file_display.pack_propagate(0)
 
         def swith_to_license_ukey():
             if self.__operate_desc.get() == '读设备ID':  # 表示从读ID界面切换过来
@@ -1234,6 +1236,7 @@ class OneOsGui:
             self.frame_hid_display.pack_forget()
             self.frame_license_file_display.pack_forget()
             self.frame_license_ukey_display.pack(side=tk.TOP, fill=tk.X)
+            self.frame_license_ukey_display.pack_propagate(0)
 
         # 创建读ID Button
         label_read_id = tk.Label(parent, text='读ID', bg='white', fg=_ACTIVE_COLOR, width=10, bd=3, padx=3, pady=1)  # TODO 鼠标滑过更改字体
@@ -1277,7 +1280,7 @@ class OneOsGui:
         创建三个frame，根据operte_type属性进行pack和pack_forget
         """
         # 界面1：读hid的配置项
-        frame_hid_display = tk.Frame(parent, bg='white')
+        frame_hid_display = tk.Frame(parent, bg='white', width=280, height=280)
         ## 占位
         frame_place_holder_1 = tk.Frame(frame_hid_display, bg='white')
         tk.Label(frame_place_holder_1, pady=20, text=' ', bg='white').pack()
@@ -1312,9 +1315,10 @@ class OneOsGui:
         ### 填充文本选择框以及按钮
         frame_2.pack(side=tk.TOP, fill=tk.X)
         frame_hid_display.pack(side=tk.TOP, fill=tk.X)
+        frame_hid_display.pack_propagate(0)
 
         # 界面2：license_file写license的配置项
-        frame_license_file_display = tk.Frame(parent)
+        frame_license_file_display = tk.Frame(parent, width=280, height=280)
         ## 占位
         frame_place_holder_2 = tk.Frame(frame_license_file_display, bg='white')
         tk.Label(frame_place_holder_2, pady=10, text=' ', bg='white').pack()
@@ -1339,7 +1343,7 @@ class OneOsGui:
         frame_place_holder_2_2.pack(side=tk.TOP, expand=True, fill=tk.X)
 
         # 界面3：ukey写license的配置项
-        frame_license_ukey_display = tk.Frame(parent)
+        frame_license_ukey_display = tk.Frame(parent, width=280, height=280, bg='white')
         ## ukey连接状态信息
         frame_1 = tk.Frame(frame_license_ukey_display, bg='white')
         tk.Label(frame_1, textvariable=self.__ukey_info.desc, font=('微软雅黑', 12),
@@ -1361,11 +1365,11 @@ class OneOsGui:
         label_ukey.bind('<Button-1>', self.alter_ukey_connect(frame_license_ukey_display))
         label_ukey.bind('<Enter>', enter)
         label_ukey.bind('<Leave>', leave)
-        frame_2.pack(side=tk.TOP, expand=True, fill=tk.X)
+        frame_2.pack(side=tk.TOP, expand=True, fill=tk.X, pady=10)
         ## 底层占位
         frame_place_holder_3 = tk.Frame(frame_license_ukey_display, bg='white')
         tk.Label(frame_place_holder_3, text=' ', bg='white').pack()
-        frame_place_holder_3.pack(side=tk.TOP, expand=True, fill=tk.X)
+        frame_place_holder_3.pack(side=tk.TOP, expand=True, fill=tk.X, pady=20)
 
         return frame_hid_display, frame_license_file_display, frame_license_ukey_display
 
