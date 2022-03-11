@@ -162,7 +162,7 @@ def check_payload(payload, command_type: str) -> bool:
     excepted_command = getattr(ProtocolCommand, command_type).value
     command = payload.command
     data = payload.data
-    if command == excepted_command and data == DataError.LICENSE_PROCESS_OK.value:
+    if command == excepted_command and data == DataError.LICENSE_OK.value:
         return True
     else:
         return False

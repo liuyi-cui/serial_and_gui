@@ -88,7 +88,7 @@ class PyUKey:
             self.hinst = ctypes.cdll.LoadLibrary(dll_path)
         else:
             raise PyUKeyException('请传入正确的Don_API.dll路径')
-        self.license = []  # 存储生成的组件id:license映射
+        self.license = []  # 存储生成的组件id:license元组对
         self.used_license_record_count = None  # 已经使用的license数量记录
 
     def find(self):
