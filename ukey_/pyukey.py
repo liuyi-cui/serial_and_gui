@@ -98,6 +98,9 @@ class PyUKey:
         if ret == 0:
             self.ukey_pool = n_count.value
             self.products = [f'{self.PRODUCT_PREFIX} {i}' for i in range(1, self.ukey_pool+1)]
+        else:
+            self.ukey_pool = None
+            self.products = []  # 当查找设备失败时，清空设备属性
 
     def open_don(self, don_index):
         """
