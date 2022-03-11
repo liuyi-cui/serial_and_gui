@@ -46,15 +46,15 @@ class BaseInfo:
                 self.algorithm_type_name = self.ALGORITHM_TYPE_MAP.get(int(value))
                 self.algorithm_type = value
             elif tag == '03':  # 厂商简称
-                self.manufacturer_code = value
+                self.manufacturer_code = strhextobytes(value).decode('ascii')
             elif tag == '04':  # UKey编号
-                self.ukey_no = value
+                self.ukey_no = strhextobytes(value).decode('ascii')
             elif tag == '05':  # 用户ID
-                self.user_id = value
+                self.user_id = strhextobytes(value).decode('ascii')
             elif tag == '06':  # 账户ID
-                self.account_id = value
+                self.account_id = strhextobytes(value).decode('ascii')
             elif tag == '07':  # 芯片型号
-                self.chip_model = value
+                self.chip_model = strhextobytes(value).decode('ascii')
             else:
                 raise PyUKeyException(f'基本文件信息解析失败，value：{base_value}')
             interval = 4 + length
@@ -88,8 +88,8 @@ class PyUKey:
             self.hinst = ctypes.cdll.LoadLibrary(dll_path)
         else:
             raise PyUKeyException('请传入正确的Don_API.dll路径')
-        self.license = []
-        self.used_license_record_count = None
+        self.license = []  # 存储生成的组件id:license映射
+        self.used_license_record_count = None  # 已经使用的license数量记录
 
     def find(self):
         """获取当前连接的UKey设备数"""
