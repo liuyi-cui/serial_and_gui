@@ -5,11 +5,15 @@
 *.pyc
 python/
 
+# Jupyter notebook
+*.ipynb*
+
 # Out
 output/
 *.zip
 *.pdf
 *.png
+log/
 
 # Input
 input/
@@ -17,4 +21,5 @@ input/
 # Others
 README.assets
 HIDS
+temp*
 
