@@ -2351,6 +2351,7 @@ class OneOsGui:
                     self.tree_insert((hid_value, component_id, '成功'), self.tree_license)
                     self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
                 if if_success:
+                    self.last_success_hid = hid_value
                     self.operate_start_time = datetime.now()
                     self.log_shower_insert(f'设备{hid_value}写入license成功\n', tag='confirm')
                     self.__update_statistic('成 功', fg='green')
@@ -2650,6 +2651,7 @@ class OneOsGui:
                 self.tree_insert((hid_value, component_id, '成功'), self.tree_license)
                 self.log_shower_insert(f'{component_id}写入license{license_}成功\n', tag='warn')
             if if_success:
+                self.last_success_hid = hid_value
                 self.operate_start_time = datetime.now()
                 self.log_shower_insert(f'设备{hid_value}写入license成功\n', tag='confirm')
                 self.__update_statistic('成 功', fg='green')
